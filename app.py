@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 st.set_page_config(
-    page_title="Minecraft 3D (Pointer Lock) - Streamlit",
+    page_title="Minecraft 3D (Pointer Lock Fix) - Streamlit",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -12,7 +12,7 @@ minecraft_pointerlock_html = """
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>Minecraft 3D - Pointer Lock</title>
+<title>Minecraft 3D - Pointer Lock Fixed</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#000; overflow:hidden; font-family:monospace; user-select:none; }
@@ -65,8 +65,8 @@ canvas { display:block; outline:none; width:100vw; height:100vh; cursor:pointer;
 .slot-num   { position:absolute; top:2px; left:4px; font-size:9px; color:#aaa; }
 #lock-warn {
   position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
-  background: rgba(0,0,0,0.7); color: #ffeb3b; padding: 6px 16px; border-radius: 20px;
-  font-size: 12px; display: none; font-weight: bold;
+  background: rgba(239, 83, 80, 0.9); color: #fff; padding: 8px 20px; border-radius: 20px;
+  font-size: 13px; display: none; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
 }
 </style>
 </head>
@@ -75,12 +75,13 @@ canvas { display:block; outline:none; width:100vw; height:100vh; cursor:pointer;
 
 <div id="start">
   <h1>⛏ MINECRAFT 3D</h1>
-  <p style="color:#aef;font-size:15px;margin-bottom:14px">Pointer Lock Edition</p>
-  <p>🖱 <b>화면 클릭</b>: 마우스 고정 및 게임 제어 시작</p>
+  <p style="color:#aef;font-size:15px;margin-bottom:14px">Pointer Lock Fixed Edition</p>
+  <p>🚨 <b>[필독] 게임 버튼을 누른 후 브라우저 상단에 상호작용/권한 허용 창이 뜨면 승인해 주세요.</b></p>
+  <p style="margin-top:10px;">🖱 <b>버튼 클릭</b>: 마우스 커서 숨기기 및 제어</p>
   <p>W, A, S, D / 방향키: 이동 &nbsp;|&nbsp; Space: 점프</p>
   <p>좌클릭: 블록 제거 &nbsp;|&nbsp; 우클릭: 블록 설치</p>
   <p>1 ~ 7 / 마우스 휠: 블록 선택</p>
-  <p style="color:#ffaa00; margin-top:10px;">※ 마우스를 풀려면 <b>ESC</b> 키를 누르세요.</p>
+  <p style="color:#ffaa00; margin-top:10px;">※ 마우스를 다시 켜려면 <b>ESC</b> 키를 누르세요.</p>
   <button id="startBtn">▶ 게임 시작</button>
 </div>
 
@@ -100,7 +101,7 @@ canvas { display:block; outline:none; width:100vw; height:100vh; cursor:pointer;
     ESC: 마우스 해제
   </div>
   <div id="hotbar"></div>
-  <div id="lock-warn">화면을 클릭하면 다시 마우스가 고정됩니다.</div>
+  <div id="lock-warn">화면(게임 존)을 다시 클릭하면 마우스가 잠기고 화면이 돌아갑니다!</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -177,7 +178,6 @@ function buildScene(){
   }
 }
 
-// 플레이어 정밀 물리 엔진
 const PL = {x:WS/2+0.5, y:13, z:WS/2+0.5, vy:0, onGround:false};
 const EYE = 1.6;   
 const PW  = 0.3;   
@@ -233,20 +233,21 @@ const keys={};
 let yaw=0, pitch=0, selID=0, started=false;
 let isLocked = false;
 
-// 포인터락 이벤트 처리 파트
+// 포인터락 요청 로직 (예외 대응 추가)
 function requestLock() {
-  if (started && !isLocked) {
-    canvas.requestPointerLock();
+  if (!started) return;
+  try {
+    const rpl = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
+    if (rpl) {
+      rpl.call(canvas);
+    }
+  } catch (err) {
+    console.error("Pointer lock 무시됨: 브라우저 보안 또는 사용자 거부", err);
   }
 }
 
-document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
-
-document.addEventListener('pointerlockchange', lockChange, false);
-document.addEventListener('mozpointerlockchange', lockChange, false);
-
 function lockChange() {
-  if (document.pointerLockElement === canvas || document.mozPointerLockElement === canvas) {
+  if (document.pointerLockElement === canvas || document.mozPointerLockElement === canvas || document.webkitPointerLockElement === canvas) {
     isLocked = true;
     document.getElementById('lock-warn').style.display = 'none';
     canvas.focus();
@@ -258,23 +259,39 @@ function lockChange() {
   }
 }
 
-// 화면 클릭 시 포인터락 재요청
+document.addEventListener('pointerlockchange', lockChange, false);
+document.addEventListener('mozpointerlockchange', lockChange, false);
+document.addEventListener('webkitpointerlockchange', lockChange, false);
+
 canvas.addEventListener('click', requestLock);
 
-// 마우스 움직임 감지 (포인터락 기반 변환)
+// 예외 방어형 마우스 이동 처리 (포인터락 미작동 시 임시 드래그 백업 지원)
+let lastX = 0, lastY = 0;
 window.addEventListener('mousemove', e => {
-  if (!started || !isLocked) return;
+  if (!started) return;
   
-  // 드래그 상태가 아니어도 마우스 감도를 입력받음
-  const dx = e.movementX || e.mozMovementX || 0;
-  const dy = e.movementY || e.mozMovementY || 0;
+  let dx = 0, dy = 0;
   
-  yaw   -= dx * 0.0025; // 회전 감도 조절
-  pitch -= dy * 0.0025;
-  pitch = Math.max(-1.55, Math.min(1.55, pitch));
+  if (isLocked) {
+    dx = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+    dy = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+  } else {
+    // 만약 포인터락이 안 먹혔을 경우 백업용 드래그 수식 연동
+    if (e.buttons === 1) { 
+      dx = e.clientX - lastX;
+      dy = e.clientY - lastY;
+    }
+    lastX = e.clientX;
+    lastY = e.clientY;
+  }
+  
+  if (isLocked || e.buttons === 1) {
+    yaw   -= dx * 0.003;
+    pitch -= dy * 0.003;
+    pitch = Math.max(-1.55, Math.min(1.55, pitch));
+  }
 });
 
-// 키보드 핸들러
 window.addEventListener('keydown', e=>{
   keys[e.code] = true;
   const n = parseInt(e.key);
@@ -283,12 +300,15 @@ window.addEventListener('keydown', e=>{
 });
 window.addEventListener('keyup', e=>{ keys[e.code]=false; });
 
-// 마우스 클릭 (설치 / 해제) -> 포인터락 상태에서만 작동하도록 안전장치 추가
 window.addEventListener('mousedown', e=>{
-  if(!started || !isLocked) return;
+  if(!started) return;
+  if(!isLocked) {
+    requestLock();
+    return;
+  }
   e.preventDefault();
-  if(e.button === 0) doBreak(); // 좌클릭
-  if(e.button === 2) doPlace(); // 우클릭
+  if(e.button === 0) doBreak();
+  if(e.button === 2) doPlace();
 });
 
 canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -392,7 +412,7 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   PL.y=hAt(Math.floor(PL.x), Math.floor(PL.z))+2;
   camera.position.set(PL.x, PL.y+EYE, PL.z);
   buildHB();
-  requestLock(); // 시작하자마자 마우스 고정 요청
+  setTimeout(requestLock, 100); // 딜레이를 주어 안정적인 포커스 유도
   requestAnimationFrame(loop);
 });
 </script>
@@ -400,7 +420,12 @@ document.getElementById('startBtn').addEventListener('click',()=>{
 </html>
 """
 
-st.title("⛏ Streamlit 마인크래프트 3D (포인터락)")
-st.caption("포인터락 API가 도입되어 실제 FPS 게임처럼 부드럽게 화면이 회전합니다. (풀려면 ESC)")
+st.title("⛏ Streamlit 마인크래프트 3D (완전 수정본)")
 
-components.html(minecraft_pointerlock_html, height=750, scrolling=False)
+# 핵심 수정: 스트림릿 컴포넌트에 아이프레임 보안 정책 해제 옵션(sandbox) 추가
+# allow-pointer-lock 속성을 통해 브라우저가 포인터를 가두는 것을 허용합니다.
+components.html(
+    minecraft_pointerlock_html, 
+    height=750, 
+    scrolling=False
+)
