@@ -1,22 +1,23 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
+# 스트림릿 페이지 설정 (전체 화면 최적화)
 st.set_page_config(
-    page_title="Minecraft 3D (Pointer Lock Fix) - Streamlit",
+    page_title="Minecraft 3D (Enhanced) - Streamlit",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-minecraft_pointerlock_html = """
+minecraft_enhanced_html = """
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>Minecraft 3D - Pointer Lock Fixed</title>
+<title>Minecraft 3D - Enhanced</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#000; overflow:hidden; font-family:monospace; user-select:none; }
-canvas { display:block; outline:none; width:100vw; height:100vh; cursor:pointer; }
+canvas { display:block; outline:none; width:100vw; height:100vh; }
 #start {
   position:fixed; inset:0; background:rgba(0,0,0,0.9);
   display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -63,10 +64,55 @@ canvas { display:block; outline:none; width:100vw; height:100vh; cursor:pointer;
 .slot-color { width:26px; height:26px; border-radius:3px; border:1px solid rgba(255,255,255,0.4); }
 .slot-label { font-size:9px; color:#eee; margin-top:2px; font-weight:bold; }
 .slot-num   { position:absolute; top:2px; left:4px; font-size:9px; color:#aaa; }
-#lock-warn {
-  position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
-  background: rgba(239, 83, 80, 0.9); color: #fff; padding: 8px 20px; border-radius: 20px;
-  font-size: 13px; display: none; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+
+/* 1인칭 플레이어 손 및 아이템 뷰 */
+#hand-container {
+  position: absolute; bottom: 0; right: 10%;
+  width: 300px; height: 300px;
+  pointer-events: none;
+  display: flex; align-items: flex-end; justify-content: center;
+  transform-origin: bottom right;
+  transition: transform 0.1s ease;
+}
+.hand-arm {
+  position: absolute; bottom: -80px; right: 20px;
+  width: 70px; height: 200px;
+  background: #e0a96d; /* 플레이어 피부색 */
+  border: 4px solid #3e2723; border-radius: 10px 10px 0 0;
+  transform: rotate(-15deg);
+}
+.held-item {
+  position: absolute; bottom: 60px; right: 60px;
+  width: 120px; height: 120px;
+  transform-origin: bottom right;
+  display: flex; align-items: center; justify-content: center;
+}
+/* CSS로 가볍게 구현한 픽셀 곡괭이 형태 */
+.pickaxe-art {
+  position: relative; width: 14px; height: 100px; background: #8b5a2b; /* 자루 */
+  transform: rotate(35deg);
+}
+.pickaxe-art::before {
+  content: ''; position: absolute; top: 0; left: -33px;
+  width: 80px; height: 20px; background: #b0bec5; /* 곡괭이 머리철 */
+  border-radius: 4px; border: 2px solid #37474f;
+}
+/* 블록 아이템 홀더 */
+.block-art {
+  width: 60px; height: 60px;
+  border: 3px solid rgba(0,0,0,0.4);
+  box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
+  transform: rotate(-10deg) skewX(10deg);
+}
+
+/* 애니메이션 동작 클래스 */
+.swing-animation {
+  animation: pickaxeSwing 0.25s ease-in-out;
+}
+@keyframes pickaxeSwing {
+  0% { transform: rotate(0deg) translateY(0); }
+  50% { transform: rotate(-45deg) translateY(-30px) translateX(-20px); }
+  100% { transform: rotate(0deg) translateY(0); }
 }
 </style>
 </head>
@@ -75,13 +121,12 @@ canvas { display:block; outline:none; width:100vw; height:100vh; cursor:pointer;
 
 <div id="start">
   <h1>⛏ MINECRAFT 3D</h1>
-  <p style="color:#aef;font-size:15px;margin-bottom:14px">Pointer Lock Fixed Edition</p>
-  <p>🚨 <b>[필독] 게임 버튼을 누른 후 브라우저 상단에 상호작용/권한 허용 창이 뜨면 승인해 주세요.</b></p>
-  <p style="margin-top:10px;">🖱 <b>버튼 클릭</b>: 마우스 커서 숨기기 및 제어</p>
+  <p style="color:#cef;font-size:15px;margin-bottom:14px">Animals & First-Person Hand Update</p>
+  <p><b>[중요]</b> 키보드가 안 먹히면 화면을 한 번 클릭하세요!</p>
+  <p style="margin-top:10px;">🖱 <b>마우스 드래그</b>: 시점 회전</p>
   <p>W, A, S, D / 방향키: 이동 &nbsp;|&nbsp; Space: 점프</p>
-  <p>좌클릭: 블록 제거 &nbsp;|&nbsp; 우클릭: 블록 설치</p>
-  <p>1 ~ 7 / 마우스 휠: 블록 선택</p>
-  <p style="color:#ffaa00; margin-top:10px;">※ 마우스를 다시 켜려면 <b>ESC</b> 키를 누르세요.</p>
+  <p>좌클릭: 블록 제거 (곡괭이질 모션) &nbsp;|&nbsp; 우클릭: 블록 설치</p>
+  <p>1 ~ 7 / 마우스 휠: 도구 및 블록 선택</p>
   <button id="startBtn">▶ 게임 시작</button>
 </div>
 
@@ -89,31 +134,35 @@ canvas { display:block; outline:none; width:100vw; height:100vh; cursor:pointer;
   <div id="cross"></div>
   <div id="info">
     <div id="ipos">위치: 0, 0, 0</div>
-    <div id="iblk">블록: 잔디</div>
+    <div id="iblk">도구: 철 곡괭이</div>
     <div id="ifps">FPS: --</div>
   </div>
   <div id="tip">
-    마우스 이동: 시점회전<br>
-    좌클릭: 블록제거<br>
+    드래그: 시점회전<br>
+    좌클릭: 블록제거/곡괭이질<br>
     우클릭: 블록설치<br>
-    WASD: 이동<br>
-    Space: 점프<br>
-    ESC: 마우스 해제
+    WASD: 이동 | Space: 점프
   </div>
+  
+  <div id="hand-container">
+    <div class="hand-arm"></div>
+    <div id="item-renderer" class="held-item"></div>
+  </div>
+
   <div id="hotbar"></div>
-  <div id="lock-warn">화면(게임 존)을 다시 클릭하면 마우스가 잠기고 화면이 돌아갑니다!</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+// 인벤토리 목록 구성 (벽돌 제외하고 곡괭이 탑재)
 const BTYPES = [
-  {name:'잔디', color:0x5d8a2e},
-  {name:'흙',   color:0x8B6340},
-  {name:'돌',   color:0x888888},
-  {name:'나무', color:0x8B4513},
-  {name:'잎',   color:0x2e7d32},
-  {name:'모래', color:0xd4b483},
-  {name:'벽돌', color:0xb34c3a},
+  {name:'철 곡괭이', color:0xb0bec5, isTool:true},
+  {name:'잔디',     color:0x5d8a2e, isTool:false},
+  {name:'흙',       color:0x8B6340, isTool:false},
+  {name:'돌',       color:0x888888, isTool:false},
+  {name:'나무',     color:0x8B4513, isTool:false},
+  {name:'잎',       color:0x2e7d32, isTool:false},
+  {name:'모래',     color:0xd4b483, isTool:false},
 ];
 
 const voxels = {};
@@ -128,16 +177,18 @@ function hAt(x,z){
     Math.sin((x+z)*0.18)*1.3+Math.cos(x*0.7)*0.6
   );
 }
+
 function genWorld(){
   for(let x=0;x<WS;x++) for(let z=0;z<WS;z++){
     const h=hAt(x,z);
-    for(let y=0;y<=h;y++) setV(x,y,z, y===h?0:y>=h-2?1:2);
+    // 인덱스 매핑 보정 (0번이 곡괭이이므로 월드 배치 시 생략하거나 알맞게 슬라이싱)
+    for(let y=0;y<=h;y++) setV(x,y,z, y===h?1:y>=h-2?2:3);
     if(Math.random()<0.04&&h<14){
       const th=3+Math.floor(Math.random()*3);
-      for(let ty=1;ty<=th;ty++) setV(x,h+ty,z,3);
+      for(let ty=1;ty<=th;ty++) setV(x,h+ty,z,4);
       for(let lx=-2;lx<=2;lx++) for(let lz=-2;lz<=2;lz++) for(let ly=th-1;ly<=th+2;ly++)
         if(Math.abs(lx)+Math.abs(lz)+Math.abs(ly-th)<4&&getV(x+lx,h+ly,z+lz)===undefined)
-          setV(x+lx,h+ly,z+lz,4);
+          setV(x+lx,h+ly,z+lz,5);
     }
   }
 }
@@ -178,6 +229,99 @@ function buildScene(){
   }
 }
 
+// 🐏 동물 (양/소) 데이터 및 AI 시스템 파트
+const animals = [];
+const animalGroup = new THREE.Group();
+scene.add(animalGroup);
+
+function spawnAnimals() {
+  const types = [
+    { name: 'sheep', bodyColor: 0xffffff, headColor: 0xf5f5f5 }, // 양
+    { name: 'cow',   bodyColor: 0x5c4033, headColor: 0x3d2723 }  // 소
+  ];
+
+  for(let i=0; i<8; i++) {
+    const type = types[Math.floor(Math.random() * types.length)];
+    const ax = 5 + Math.random() * (WS - 10);
+    const az = 5 + Math.random() * (WS - 10);
+    const ay = hAt(Math.floor(ax), Math.floor(az)) + 1;
+
+    // 큐브 조립형 동물 메쉬 생성
+    const mGroup = new THREE.Group();
+    
+    // 몸통
+    const bodyGeo = new THREE.BoxGeometry(0.8, 0.6, 1.2);
+    const bodyMat = new THREE.MeshLambertMaterial({color: type.bodyColor});
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 0.4;
+    mGroup.add(body);
+
+    // 머리
+    const headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+    const headMat = new THREE.MeshLambertMaterial({color: type.headColor});
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.set(0, 0.6, 0.6);
+    mGroup.add(head);
+
+    // 다리 4개
+    const legGeo = new THREE.BoxGeometry(0.18, 0.4, 0.18);
+    const legMat = new THREE.MeshLambertMaterial({color: type.headColor});
+    const legPositions = [
+      [-0.3, 0, 0.4], [0.3, 0, 0.4],
+      [-0.3, 0, -0.4], [0.3, 0, -0.4]
+    ];
+    legPositions.forEach(pos => {
+      const leg = new THREE.Mesh(legGeo, legMat);
+      leg.position.set(...pos);
+      mGroup.add(leg);
+    });
+
+    mGroup.position.set(ax, ay, az);
+    animalGroup.add(mGroup);
+
+    animals.push({
+      mesh: mGroup,
+      x: ax, y: ay, z: az,
+      vx: 0, vz: 0,
+      changeTimer: 0,
+      type: type.name
+    });
+  }
+}
+
+function updateAnimals(dt) {
+  animals.forEach(a => {
+    a.changeTimer -= dt;
+    if(a.changeTimer <= 0) {
+      // 무작위로 배회하거나 멈추는 AI 기작
+      if(Math.random() < 0.6) {
+        const angle = Math.random() * Math.PI * 2;
+        a.vx = Math.cos(angle) * 1.5;
+        a.vz = Math.sin(angle) * 1.5;
+        a.mesh.rotation.y = -angle + Math.PI/2;
+      } else {
+        a.vx = 0; a.vz = 0;
+      }
+      a.changeTimer = 2 + Math.random() * 4;
+    }
+
+    // 이동 연산 및 지형 결합 (바닥 낙하)
+    a.x += a.vx * dt;
+    a.z += a.vz * dt;
+    
+    const curH = hAt(Math.floor(a.x), Math.floor(a.z)) + 1;
+    if(a.y > curH) {
+      a.y += -9.8 * dt; // 중력 적용
+      if(a.y < curH) a.y = curH;
+    } else {
+      a.y = curH;
+    }
+    
+    a.mesh.position.set(a.x, a.y, a.z);
+  });
+}
+
+// 플레이어 물리 파트 
 const PL = {x:WS/2+0.5, y:13, z:WS/2+0.5, vy:0, onGround:false};
 const EYE = 1.6;   
 const PW  = 0.3;   
@@ -192,7 +336,7 @@ function isSolid(x,y,z){
 
 function collidesHoriz(px, py, pz){
   const ys = [0.1, 0.9, PH-0.1];
-  for(const oy of ys){
+  for(const oy of ys) {
     if( isSolid(px-PW, py+oy, pz-PW) || isSolid(px+PW, py+oy, pz-PW) ||
         isSolid(px-PW, py+oy, pz+PW) || isSolid(px+PW, py+oy, pz+PW) )
       return true;
@@ -231,92 +375,72 @@ function movePlayer(dx, dy, dz){
 
 const keys={};
 let yaw=0, pitch=0, selID=0, started=false;
-let isLocked = false;
-
-// 포인터락 요청 로직 (예외 대응 추가)
-function requestLock() {
-  if (!started) return;
-  try {
-    const rpl = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
-    if (rpl) {
-      rpl.call(canvas);
-    }
-  } catch (err) {
-    console.error("Pointer lock 무시됨: 브라우저 보안 또는 사용자 거부", err);
-  }
-}
-
-function lockChange() {
-  if (document.pointerLockElement === canvas || document.mozPointerLockElement === canvas || document.webkitPointerLockElement === canvas) {
-    isLocked = true;
-    document.getElementById('lock-warn').style.display = 'none';
-    canvas.focus();
-  } else {
-    isLocked = false;
-    if(started) {
-      document.getElementById('lock-warn').style.display = 'block';
-    }
-  }
-}
-
-document.addEventListener('pointerlockchange', lockChange, false);
-document.addEventListener('mozpointerlockchange', lockChange, false);
-document.addEventListener('webkitpointerlockchange', lockChange, false);
-
-canvas.addEventListener('click', requestLock);
-
-// 예외 방어형 마우스 이동 처리 (포인터락 미작동 시 임시 드래그 백업 지원)
-let lastX = 0, lastY = 0;
-window.addEventListener('mousemove', e => {
-  if (!started) return;
-  
-  let dx = 0, dy = 0;
-  
-  if (isLocked) {
-    dx = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-    dy = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-  } else {
-    // 만약 포인터락이 안 먹혔을 경우 백업용 드래그 수식 연동
-    if (e.buttons === 1) { 
-      dx = e.clientX - lastX;
-      dy = e.clientY - lastY;
-    }
-    lastX = e.clientX;
-    lastY = e.clientY;
-  }
-  
-  if (isLocked || e.buttons === 1) {
-    yaw   -= dx * 0.003;
-    pitch -= dy * 0.003;
-    pitch = Math.max(-1.55, Math.min(1.55, pitch));
-  }
-});
+let dragging=false, lastMX=0, lastMY=0;
+let downX=0, downY=0, downBtn=0, dragMoved=false;
+const DRAG_THRESH = 5;
 
 window.addEventListener('keydown', e=>{
   keys[e.code] = true;
   const n = parseInt(e.key);
-  if(n>=1&&n<=7){ selID=n-1; updateHB(); }
+  if(n>=1&&n<=7){ selID=n-1; updateHB(); renderHandItem(); }
   if(e.code==='Space') e.preventDefault();
 });
 window.addEventListener('keyup', e=>{ keys[e.code]=false; });
 
-window.addEventListener('mousedown', e=>{
+function focusGame() { canvas.focus(); }
+window.addEventListener('click', focusGame);
+
+canvas.addEventListener('mousedown', e=>{
   if(!started) return;
-  if(!isLocked) {
-    requestLock();
-    return;
-  }
   e.preventDefault();
-  if(e.button === 0) doBreak();
-  if(e.button === 2) doPlace();
+  focusGame();
+  dragging=true; dragMoved=false;
+  downBtn=e.button; downX=e.clientX; downY=e.clientY;
+  lastMX=e.clientX; lastMY=e.clientY;
 });
 
-canvas.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('mousemove', e=>{
+  if(!started||!dragging) return;
+  const dx=e.clientX-lastMX, dy=e.clientY-lastMY;
+  if(!dragMoved&&(Math.abs(e.clientX-downX)>DRAG_THRESH||Math.abs(e.clientY-downY)>DRAG_THRESH))
+    dragMoved=true;
+  yaw   -= dx*0.004;
+  pitch -= dy*0.004;
+  pitch = Math.max(-1.55, Math.min(1.55, pitch));
+  lastMX=e.clientX; lastMY=e.clientY;
+  
+  // 시점 전환 시 손 흔들림 효과 연동
+  const handContainer = document.getElementById('hand-container');
+  if(handContainer) {
+    handContainer.style.transform = `translateX(${-dx * 0.3}px) translateY(${Math.abs(dy) * 0.2}px)`;
+  }
+});
 
+window.addEventListener('mouseup', e=>{
+  if(!started) return;
+  if(!dragMoved){
+    if(downBtn===0) {
+      triggerSwingAnimation();
+      doBreak();
+    }
+    if(downBtn===2) {
+      triggerSwingAnimation();
+      doPlace();
+    }
+  }
+  dragging=false; dragMoved=false;
+  
+  // 손 전환 원위치 복귀
+  const handContainer = document.getElementById('hand-container');
+  if(handContainer) handContainer.style.transform = 'none';
+});
+
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
 window.addEventListener('wheel', e=>{
   if(!started) return;
   selID=(selID+(e.deltaY>0?1:-1)+BTYPES.length)%BTYPES.length;
   updateHB();
+  renderHandItem();
 },{passive:true});
 
 const rc = new THREE.Raycaster(); rc.far=7;
@@ -325,12 +449,16 @@ function raycast(){
   const hits = rc.intersectObjects(Object.values(meshMap), false);
   return hits.length ? hits[0] : null;
 }
+
 function doBreak(){
+  // 현재 들고 있는 아이템이 곡괭이(0번 슬롯)일 때만 부서지도록 유도할 수 있으나 유연성을 위해 기본값 배치
   const h=raycast(); if(!h) return;
   const{x,y,z}=h.object.userData;
   setV(x,y,z,null); delMesh(x,y,z);
 }
+
 function doPlace(){
+  if(BTYPES[selID].isTool) return; // 곡괭이는 설치 불가능
   const h=raycast(); if(!h) return;
   const n=h.face.normal;
   const{x,y,z}=h.object.userData;
@@ -341,6 +469,37 @@ function doPlace(){
   if(getV(nx,ny,nz)===undefined){ setV(nx,ny,nz,selID); addMesh(nx,ny,nz,selID); }
 }
 
+// 1인칭 손 스윙 애니메이션 처리 함수
+function triggerSwingAnimation() {
+  const container = document.getElementById('hand-container');
+  if(!container) return;
+  container.classList.remove('swing-animation');
+  void container.offsetWidth; // 브라우저 리플로우 강제 유도
+  container.add('swing-animation');
+  container.className = 'swing-animation';
+}
+
+// 들고 있는 도구/블록 UI를 1인칭 화면에 갱신
+function renderHandItem() {
+  const target = document.getElementById('item-renderer');
+  if(!target) return;
+  target.innerHTML = '';
+  
+  const current = BTYPES[selID];
+  if(current.isTool) {
+    // 곡괭이 형상 렌더링
+    const pick = document.createElement('div');
+    pick.className = 'pickaxe-art';
+    target.appendChild(pick);
+  } else {
+    // 일반 수치 블록 형상 렌더링
+    const block = document.createElement('div');
+    block.className = 'block-art';
+    block.style.background = '#' + current.color.toString(16).padStart(6, '0');
+    target.appendChild(block);
+  }
+}
+
 function buildHB(){
   const hb=document.getElementById('hotbar'); hb.innerHTML='';
   BTYPES.forEach((b,i)=>{
@@ -349,12 +508,17 @@ function buildHB(){
     const n=document.createElement('div'); n.className='slot-num'; n.textContent=i+1;
     const c=document.createElement('div'); c.className='slot-color';
     c.style.background='#'+b.color.toString(16).padStart(6,'0');
+    if(b.isTool) {
+       c.style.borderRadius = "0";
+       c.style.background = "linear-gradient(135deg, #b0bec5 40%, #8b5a2b 0)";
+    }
     const l=document.createElement('div'); l.className='slot-label'; l.textContent=b.name;
     d.append(n,c,l);
-    d.onclick=()=>{ selID=i; updateHB(); };
+    d.onclick=()=>{ selID=i; updateHB(); renderHandItem(); focusGame(); };
     hb.appendChild(d);
   });
 }
+
 function updateHB(){
   document.querySelectorAll('.slot').forEach((s,i)=>s.classList.toggle('active',i===selID));
 }
@@ -368,6 +532,9 @@ function loop(ts){
     document.getElementById('ifps').textContent='FPS:'+fpsCur; }
 
   if(!started){ renderer.render(scene,camera); return; }
+
+  // 동물 움직임 처리 엔진 작동
+  updateAnimals(dt);
 
   const sy=Math.sin(yaw), cy=Math.cos(yaw);
   let mx=0, mz=0;
@@ -393,7 +560,7 @@ function loop(ts){
   camera.quaternion.setFromEuler(new THREE.Euler(pitch,yaw,0,'YXZ'));
 
   document.getElementById('ipos').textContent=`위치: ${Math.floor(PL.x)}, ${Math.floor(PL.y)}, ${Math.floor(PL.z)}`;
-  document.getElementById('iblk').textContent=`블록: ${BTYPES[selID].name}`;
+  document.getElementById('iblk').textContent=`선택: ${BTYPES[selID].name}`;
   renderer.render(scene,camera);
 }
 
@@ -407,12 +574,13 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   document.getElementById('start').style.display='none';
   document.getElementById('hud').style.display='block';
   started=true;
-  genWorld(); buildScene();
+  genWorld(); buildScene(); spawnAnimals();
   PL.x=WS/2+0.5; PL.z=WS/2+0.5;
   PL.y=hAt(Math.floor(PL.x), Math.floor(PL.z))+2;
   camera.position.set(PL.x, PL.y+EYE, PL.z);
   buildHB();
-  setTimeout(requestLock, 100); // 딜레이를 주어 안정적인 포커스 유도
+  renderHandItem();
+  focusGame();
   requestAnimationFrame(loop);
 });
 </script>
@@ -420,12 +588,8 @@ document.getElementById('startBtn').addEventListener('click',()=>{
 </html>
 """
 
-st.title("⛏ Streamlit 마인크래프트 3D (완전 수정본)")
+st.title("⛏ Minecraft 3D (동물 & 1인칭 애니메이션 업데이트)")
+st.caption("벽돌 대신 곡괭이가 인벤토리에 탑재되었으며 양/소 동물들이 스폰됩니다. 좌클릭으로 곡괭이질을 해보세요.")
 
-# 핵심 수정: 스트림릿 컴포넌트에 아이프레임 보안 정책 해제 옵션(sandbox) 추가
-# allow-pointer-lock 속성을 통해 브라우저가 포인터를 가두는 것을 허용합니다.
-components.html(
-    minecraft_pointerlock_html, 
-    height=750, 
-    scrolling=False
-)
+# 아이프레임을 사용해 최종 결과물 화면 사출
+components.html(minecraft_enhanced_html, height=750, scrolling=False)
