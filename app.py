@@ -1,24 +1,22 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# 스트림릿 페이지 설정 (전체 화면 최적화)
 st.set_page_config(
-    page_title="Minecraft 3D - Streamlit",
+    page_title="Minecraft 3D (Pointer Lock) - Streamlit",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# 내부 구동을 위한 HTML/CSS/JS 코드 정의
-minecraft_html = """
+minecraft_pointerlock_html = """
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>Minecraft 3D</title>
+<title>Minecraft 3D - Pointer Lock</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#000; overflow:hidden; font-family:monospace; user-select:none; }
-canvas { display:block; outline:none; width:100vw; height:100vh; }
+canvas { display:block; outline:none; width:100vw; height:100vh; cursor:pointer; }
 #start {
   position:fixed; inset:0; background:rgba(0,0,0,0.9);
   display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -65,6 +63,11 @@ canvas { display:block; outline:none; width:100vw; height:100vh; }
 .slot-color { width:26px; height:26px; border-radius:3px; border:1px solid rgba(255,255,255,0.4); }
 .slot-label { font-size:9px; color:#eee; margin-top:2px; font-weight:bold; }
 .slot-num   { position:absolute; top:2px; left:4px; font-size:9px; color:#aaa; }
+#lock-warn {
+  position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.7); color: #ffeb3b; padding: 6px 16px; border-radius: 20px;
+  font-size: 12px; display: none; font-weight: bold;
+}
 </style>
 </head>
 <body>
@@ -72,12 +75,12 @@ canvas { display:block; outline:none; width:100vw; height:100vh; }
 
 <div id="start">
   <h1>⛏ MINECRAFT 3D</h1>
-  <p style="color:#aef;font-size:15px;margin-bottom:14px">Streamlit Edition</p>
-  <p><b>[중요]</b> 키보드가 안 먹히면 화면(배경)을 한 번 클릭하세요!</p>
-  <p style="margin-top:10px;">🖱 <b>마우스 드래그</b>: 시점 회전</p>
+  <p style="color:#aef;font-size:15px;margin-bottom:14px">Pointer Lock Edition</p>
+  <p>🖱 <b>화면 클릭</b>: 마우스 고정 및 게임 제어 시작</p>
   <p>W, A, S, D / 방향키: 이동 &nbsp;|&nbsp; Space: 점프</p>
   <p>좌클릭: 블록 제거 &nbsp;|&nbsp; 우클릭: 블록 설치</p>
   <p>1 ~ 7 / 마우스 휠: 블록 선택</p>
+  <p style="color:#ffaa00; margin-top:10px;">※ 마우스를 풀려면 <b>ESC</b> 키를 누르세요.</p>
   <button id="startBtn">▶ 게임 시작</button>
 </div>
 
@@ -89,13 +92,15 @@ canvas { display:block; outline:none; width:100vw; height:100vh; }
     <div id="ifps">FPS: --</div>
   </div>
   <div id="tip">
-    드래그: 시점회전<br>
+    마우스 이동: 시점회전<br>
     좌클릭: 블록제거<br>
     우클릭: 블록설치<br>
     WASD: 이동<br>
-    Space: 점프
+    Space: 점프<br>
+    ESC: 마우스 해제
   </div>
   <div id="hotbar"></div>
+  <div id="lock-warn">화면을 클릭하면 다시 마우스가 고정됩니다.</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -172,7 +177,7 @@ function buildScene(){
   }
 }
 
-// 플레이어 물리 파트 수정 및 보완
+// 플레이어 정밀 물리 엔진
 const PL = {x:WS/2+0.5, y:13, z:WS/2+0.5, vy:0, onGround:false};
 const EYE = 1.6;   
 const PW  = 0.3;   
@@ -206,24 +211,19 @@ function collidesUp(px, py, pz){
          isSolid(px-PW,top,pz+PW)||isSolid(px+PW,top,pz+PW);
 }
 
-// 축별 이동 분리 및 스냅 알고리즘 적용 (물리 버그 전면 수정)
 function movePlayer(dx, dy, dz){
-  // 1. X축 이동 및 충돌 처리
   PL.x += dx;
   if(collidesHoriz(PL.x, PL.y, PL.z)) PL.x -= dx;
 
-  // 2. Z축 이동 및 충돌 처리
   PL.z += dz;
   if(collidesHoriz(PL.x, PL.y, PL.z)) PL.z -= dz;
 
-  // 3. Y축 이동 및 충돌 처리 (천장 및 바닥 스냅 정밀 보정)
   PL.y += dy;
   if(dy < 0 && collidesDown(PL.x, PL.y, PL.z)){
     PL.y = Math.floor(PL.y) + 1;
     PL.vy = 0;
     PL.onGround = true;
   } else if(dy > 0 && collidesUp(PL.x, PL.y, PL.z)){
-    // 천장 충돌 시 머리가 뚫리지 않도록 좌표 스냅 처리 및 속도 상쇄
     PL.y = Math.floor(PL.y + PH) - PH - 0.005;
     PL.vy = 0;
   }
@@ -231,11 +231,50 @@ function movePlayer(dx, dy, dz){
 
 const keys={};
 let yaw=0, pitch=0, selID=0, started=false;
-let dragging=false, lastMX=0, lastMY=0;
-let downX=0, downY=0, downBtn=0, dragMoved=false;
-const DRAG_THRESH = 5;
+let isLocked = false;
 
-// 입력 먹통 버그 수정: 이벤트 리스너를 전역 및 윈도우 스케일로 바인딩
+// 포인터락 이벤트 처리 파트
+function requestLock() {
+  if (started && !isLocked) {
+    canvas.requestPointerLock();
+  }
+}
+
+document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
+
+document.addEventListener('pointerlockchange', lockChange, false);
+document.addEventListener('mozpointerlockchange', lockChange, false);
+
+function lockChange() {
+  if (document.pointerLockElement === canvas || document.mozPointerLockElement === canvas) {
+    isLocked = true;
+    document.getElementById('lock-warn').style.display = 'none';
+    canvas.focus();
+  } else {
+    isLocked = false;
+    if(started) {
+      document.getElementById('lock-warn').style.display = 'block';
+    }
+  }
+}
+
+// 화면 클릭 시 포인터락 재요청
+canvas.addEventListener('click', requestLock);
+
+// 마우스 움직임 감지 (포인터락 기반 변환)
+window.addEventListener('mousemove', e => {
+  if (!started || !isLocked) return;
+  
+  // 드래그 상태가 아니어도 마우스 감도를 입력받음
+  const dx = e.movementX || e.mozMovementX || 0;
+  const dy = e.movementY || e.mozMovementY || 0;
+  
+  yaw   -= dx * 0.0025; // 회전 감도 조절
+  pitch -= dy * 0.0025;
+  pitch = Math.max(-1.55, Math.min(1.55, pitch));
+});
+
+// 키보드 핸들러
 window.addEventListener('keydown', e=>{
   keys[e.code] = true;
   const n = parseInt(e.key);
@@ -244,41 +283,16 @@ window.addEventListener('keydown', e=>{
 });
 window.addEventListener('keyup', e=>{ keys[e.code]=false; });
 
-// 포커스 자동 확보 로직 추가
-function focusGame() {
-  canvas.focus();
-}
-window.addEventListener('click', focusGame);
-
-canvas.addEventListener('mousedown', e=>{
-  if(!started) return;
+// 마우스 클릭 (설치 / 해제) -> 포인터락 상태에서만 작동하도록 안전장치 추가
+window.addEventListener('mousedown', e=>{
+  if(!started || !isLocked) return;
   e.preventDefault();
-  focusGame();
-  dragging=true; dragMoved=false;
-  downBtn=e.button; downX=e.clientX; downY=e.clientY;
-  lastMX=e.clientX; lastMY=e.clientY;
+  if(e.button === 0) doBreak(); // 좌클릭
+  if(e.button === 2) doPlace(); // 우클릭
 });
 
-window.addEventListener('mousemove', e=>{
-  if(!started||!dragging) return;
-  const dx=e.clientX-lastMX, dy=e.clientY-lastMY;
-  if(!dragMoved&&(Math.abs(e.clientX-downX)>DRAG_THRESH||Math.abs(e.clientY-downY)>DRAG_THRESH))
-    dragMoved=true;
-  yaw   -= dx*0.004;
-  pitch -= dy*0.004;
-  pitch = Math.max(-1.55, Math.min(1.55, pitch));
-  lastMX=e.clientX; lastMY=e.clientY;
-});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-window.addEventListener('mouseup', e=>{
-  if(!started) return;
-  if(!dragMoved){
-    if(downBtn===0) doBreak();
-    if(downBtn===2) doPlace();
-  }
-  dragging=false; dragMoved=false;
-});
-canvas.addEventListener('contextmenu', e=>e.preventDefault());
 window.addEventListener('wheel', e=>{
   if(!started) return;
   selID=(selID+(e.deltaY>0?1:-1)+BTYPES.length)%BTYPES.length;
@@ -317,7 +331,7 @@ function buildHB(){
     c.style.background='#'+b.color.toString(16).padStart(6,'0');
     const l=document.createElement('div'); l.className='slot-label'; l.textContent=b.name;
     d.append(n,c,l);
-    d.onclick=()=>{ selID=i; updateHB(); focusGame(); };
+    d.onclick=()=>{ selID=i; updateHB(); };
     hb.appendChild(d);
   });
 }
@@ -378,7 +392,7 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   PL.y=hAt(Math.floor(PL.x), Math.floor(PL.z))+2;
   camera.position.set(PL.x, PL.y+EYE, PL.z);
   buildHB();
-  focusGame();
+  requestLock(); // 시작하자마자 마우스 고정 요청
   requestAnimationFrame(loop);
 });
 </script>
@@ -386,9 +400,7 @@ document.getElementById('startBtn').addEventListener('click',()=>{
 </html>
 """
 
-# Streamlit 인터페이스 배치 및 iframe 렌더링
-st.title("⛏ Streamlit 마인크래프트 3D")
-st.caption("Three.js 기반 물리 엔진 오류가 수정된 버전입니다. 화면을 클릭하고 조작을 시작하세요.")
+st.title("⛏ Streamlit 마인크래프트 3D (포인터락)")
+st.caption("포인터락 API가 도입되어 실제 FPS 게임처럼 부드럽게 화면이 회전합니다. (풀려면 ESC)")
 
-# 아이프레임을 사용해 게임 화면을 넓게 사출 (높이 750px 권장)
-components.html(minecraft_html, height=750, scrolling=False)
+components.html(minecraft_pointerlock_html, height=750, scrolling=False)
