@@ -3,21 +3,21 @@ import streamlit.components.v1 as components
 
 # 스트림릿 페이지 설정 (전체 화면 최적화)
 st.set_page_config(
-    page_title="Minecraft 3D (3D Hand & Bug Fix) - Streamlit",
+    page_title="Minecraft 3D (Pointer Lock) - Streamlit",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-minecraft_3d_hand_html = """
+minecraft_pointer_lock_html = """
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>Minecraft 3D - 3D Hand Fixed</title>
+<title>Minecraft 3D - Pointer Lock</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#000; overflow:hidden; font-family:monospace; user-select:none; }
-canvas { display:block; outline:none; width:100vw; height:100vh; }
+canvas { display:block; outline:none; width:100vw; height:100vh; cursor: crosshair; }
 #start {
   position:fixed; inset:0; background:rgba(0,0,0,0.9);
   display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -64,6 +64,13 @@ canvas { display:block; outline:none; width:100vw; height:100vh; }
 .slot-color { width:26px; height:26px; border-radius:3px; border:1px solid rgba(255,255,255,0.4); }
 .slot-label { font-size:9px; color:#eee; margin-top:2px; font-weight:bold; }
 .slot-num   { position:absolute; top:2px; left:4px; font-size:9px; color:#aaa; }
+
+/* 안내 메시지 스타일 */
+#lock-warn {
+  position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+  background: rgba(76, 175, 80, 0.95); color: #fff; padding: 10px 24px; border-radius: 20px;
+  font-size: 14px; display: none; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
 </style>
 </head>
 <body>
@@ -71,12 +78,12 @@ canvas { display:block; outline:none; width:100vw; height:100vh; }
 
 <div id="start">
   <h1>⛏ MINECRAFT 3D</h1>
-  <p style="color:#cef;font-size:15px;margin-bottom:14px">Pure 3D Hand & Action Bug Fixed</p>
-  <p><b>[안내]</b> 시점을 돌리며 클릭해도 블록 제거/설치가 정상 작동합니다.</p>
-  <p style="margin-top:10px;">🖱 <b>마우스 드래그</b>: 시점 회전</p>
+  <p style="color:#cef;font-size:15px;margin-bottom:14px">Real Mouse Look (Pointer Lock Locked)</p>
+  <p>📢 <b>[시작 방법]</b> 게임 시작을 누르고 화면을 클릭하면 마우스가 고정됩니다!</p>
+  <p style="margin-top:10px;">🖱 <b>마우스 이동</b>: 드래그 없이 그냥 시점 회전</p>
   <p>W, A, S, D / 방향키: 이동 &nbsp;|&nbsp; Space: 점프</p>
-  <p>좌클릭: 블록 제거 (3D 곡괭이 스윙) &nbsp;|&nbsp; 우클릭: 블록 설치</p>
-  <p>1 ~ 7 / 마우스 휠: 도구 선택</p>
+  <p>좌클릭: 블록 제거 &nbsp;|&nbsp; 우클릭: 블록 설치</p>
+  <p>1 ~ 7 / 마우스 휠: 도구 선택 &nbsp;|&nbsp; <b>ESC</b>: 마우스 해제</p>
   <button id="startBtn">▶ 게임 시작</button>
 </div>
 
@@ -88,11 +95,12 @@ canvas { display:block; outline:none; width:100vw; height:100vh; }
     <div id="ifps">FPS: --</div>
   </div>
   <div id="tip">
-    드래그: 시점회전<br>
-    좌클릭: 블록제거 (3D 애니메이션)<br>
-    우클릭: 블록설치<br>
-    WASD: 이동 | Space: 점프
+    마우스 그냥 움직이기: 시점회전<br>
+    좌클릭: 블록제거 | 우클릭: 블록설치<br>
+    WASD: 이동 | Space: 점프<br>
+    ESC: 마우스 풀기
   </div>
+  <div id="lock-warn">💡 화면을 다시 클릭하면 마우스가 고정되고 화면이 돌아갑니다!</div>
   <div id="hotbar"></div>
 </div>
 
@@ -242,88 +250,57 @@ function movePlayer(dx, dy, dz){
   else if(dy > 0 && collidesUp(PL.x, PL.y, PL.z)){ PL.y = Math.floor(PL.y + PH) - PH - 0.005; PL.vy = 0; }
 }
 
-// 🖐️ [핵심 인게임 3D 손 및 아이템 구조화 시스템]
-let handGroup;     // 카메라에 기속되어 따라다닐 3D 손 그룹
-let current3DItem; // 현재 들고 있는 3D 메쉬 오브젝트 참조변수
+// 🖐️ 3D 손 및 아이템 구조화 시스템
+let handGroup;     
+let current3DItem; 
 let swingTime = 0;
 let isSwinging = false;
 
 function init3DHand() {
   handGroup = new THREE.Group();
-  scene.add(handGroup); // 월드에 추가 후 루프에서 카메라 좌표계로 연속 추적 동기화
+  scene.add(handGroup); 
   rebuild3DHandItem();
 }
 
 function rebuild3DHandItem() {
   if (!handGroup) return;
-  
-  // 기존 잔여 메쉬 제거
-  while(handGroup.children.length > 0){
-    handGroup.remove(handGroup.children[0]);
-  }
+  while(handGroup.children.length > 0){ handGroup.remove(handGroup.children[0]); }
 
-  // 1. 플레이어의 3D 오른팔 복셀 생성
-  const armGeo = new THREE.BoxGeometry(0.25, 0.25, 0.7);
-  const armMat = new THREE.MeshLambertMaterial({ color: 0xe0a96d });
-  const armMesh = new THREE.Mesh(armGeo, armMat);
-  // 카메라 우측 하단에 배치하기 위한 초기 오프셋
+  const armMesh = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.7), new THREE.MeshLambertMaterial({ color: 0xe0a96d }));
   armMesh.position.set(0.35, -0.35, -0.6);
   armMesh.rotation.set(-0.2, -0.2, 0);
   handGroup.add(armMesh);
 
-  // 2. 들고 있는 아이템 메쉬 분기 설계
   const current = BTYPES[selID];
   const itemGroup = new THREE.Group();
 
   if (current.isTool) {
-    // ⛏️ 3D 복셀 조합형 철 곡괭이 제작
-    // 자루(막대기)
-    const stickGeo = new THREE.BoxGeometry(0.05, 0.5, 0.05);
-    const stickMat = new THREE.MeshLambertMaterial({ color: 0x8b5a2b });
-    const stick = new THREE.Mesh(stickGeo, stickMat);
-    stick.position.set(0, 0.2, 0);
-    itemGroup.add(stick);
-
-    // 머리 철조각 (날 부위)
-    const headGeo = new THREE.BoxGeometry(0.4, 0.06, 0.06);
-    const headMat = new THREE.MeshLambertMaterial({ color: 0xb0bec5 });
-    const head = new THREE.Mesh(headGeo, headMat);
-    head.position.set(0, 0.42, 0);
-    itemGroup.add(head);
-    
+    const stick = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.05), new THREE.MeshLambertMaterial({ color: 0x8b5a2b }));
+    stick.position.set(0, 0.2, 0); itemGroup.add(stick);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 0.06), new THREE.MeshLambertMaterial({ color: 0xb0bec5 }));
+    head.position.set(0, 0.42, 0); itemGroup.add(head);
     itemGroup.rotation.set(0.3, 0, -0.4);
   } else {
-    // 📦 3D 복셀 축소판 블록 오브젝트 제작
-    const blockGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-    const blockMat = new THREE.MeshLambertMaterial({ color: current.color });
-    const blockMesh = new THREE.Mesh(blockGeo, blockMat);
-    blockMesh.position.set(0, 0.15, 0);
-    itemGroup.add(blockMesh);
+    const blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshLambertMaterial({ color: current.color }));
+    blockMesh.position.set(0, 0.15, 0); itemGroup.add(blockMesh);
   }
 
-  // 아이템을 팔의 끝 지점(손 위치) 근처에 바인딩
   itemGroup.position.set(0.35, -0.25, -0.75);
   handGroup.add(itemGroup);
-  current3DItem = itemGroup; // 애니메이션 변형 타겟 지정
+  current3DItem = itemGroup; 
 }
 
-// 3D 스윙 애니메이션 구동 제어 엔진
 function update3DHandAnimation(dt) {
   if (!handGroup) return;
-
-  // 1. 카메라의 물리적 위치와 회전값을 매 프레임 1:1 결합 (화면에 고정된 것처럼 보이게 함)
   handGroup.position.copy(camera.position);
   handGroup.quaternion.copy(camera.quaternion);
 
-  // 2. 좌클릭 발동 시 3D 아이템 회전각 연산 구현
   if (isSwinging) {
-    swingTime += dt * 5.0; // 애니메이션 스피드 배수 정밀화
+    swingTime += dt * 5.0; 
     if (swingTime > Math.PI) {
-      swingTime = 0;
-      isSwinging = false;
-      current3DItem.rotation.x = 0; // 원위치 롤백
+      swingTime = 0; isSwinging = false;
+      current3DItem.rotation.x = 0; current3DItem.rotation.z = 0;
     } else {
-      // 사인 파형 곡선 수식을 연동하여 타격 후 돌아오는 궤적 형성
       const swingAngle = Math.sin(swingTime) * 1.2;
       current3DItem.rotation.x = swingAngle;
       current3DItem.rotation.z = -swingAngle * 0.4;
@@ -331,13 +308,70 @@ function update3DHandAnimation(dt) {
   }
 }
 
-// 🕹️ 조작 제어 및 충돌 수집 메커니즘
-const keys={};
+// 🕹️ 마우스 포인터 고정(Pointer Lock) 핵심 제어부
 let yaw=0, pitch=0, selID=0, started=false;
-let dragging=false, lastMX=0, lastMY=0;
+let isPointerLocked = false;
+const keys={};
 
-// [버그 수정의 핵심]: 드래그 이동 거리 측정 방식을 절대 좌표 기반에서 이벤트 변위량으로 완전 변경하여 조작 씹힘 차단
-let totalDragDist = 0; 
+// 포인터 고정 기능 호출
+function requestPointerLock() {
+  if(!started) return;
+  canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
+  if(canvas.requestPointerLock) {
+    canvas.requestPointerLock();
+  }
+}
+
+// 포인터 상태 변경 감지
+function lockChange() {
+  if (document.pointerLockElement === canvas || document.mozPointerLockElement === canvas || document.webkitPointerLockElement === canvas) {
+    isPointerLocked = true;
+    document.getElementById('lock-warn').style.display = 'none';
+    canvas.focus();
+  } else {
+    isPointerLocked = false;
+    if(started) {
+      document.getElementById('lock-warn').style.display = 'block'; // 해제 시 재안내
+    }
+  }
+}
+
+document.addEventListener('pointerlockchange', lockChange, false);
+document.addEventListener('mozpointerlockchange', lockChange, false);
+document.addEventListener('webkitpointerlockchange', lockChange, false);
+
+// 화면 클릭 시 자동으로 포인터 잠금 요청
+canvas.addEventListener('click', requestPointerLock);
+
+// [수정] 마우스가 고정된 상태에서만 movementX, Y 변위값을 읽어 드래그 없이 화면 회전 처리
+window.addEventListener('mousemove', e => {
+  if (!started || !isPointerLocked) return;
+
+  const dx = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+  const dy = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+
+  yaw   -= dx * 0.0025; // 회전 감도 조절
+  pitch -= dy * 0.0025;
+  pitch = Math.max(-1.55, Math.min(1.55, pitch));
+});
+
+// 마우스 클릭 시 즉시 블록 상호작용 (포인터락 상태이므로 클릭 즉시 반응)
+window.addEventListener('mousedown', e => {
+  if (!started) return;
+  
+  if (!isPointerLocked) {
+    requestPointerLock();
+    return;
+  }
+
+  if (e.button === 0) { // 좌클릭
+    isSwinging = true; swingTime = 0;
+    doBreak();
+  } else if (e.button === 2) { // 우클릭
+    isSwinging = true; swingTime = 0;
+    doPlace();
+  }
+});
 
 window.addEventListener('keydown', e=>{
   keys[e.code] = true;
@@ -347,60 +381,11 @@ window.addEventListener('keydown', e=>{
 });
 window.addEventListener('keyup', e=>{ keys[e.code]=false; });
 
-function focusGame() { canvas.focus(); }
-window.addEventListener('click', focusGame);
-
-// 마우스 다운 시점 초기화
-canvas.addEventListener('mousedown', e=>{
-  if(!started) return;
-  e.preventDefault();
-  focusGame();
-  dragging = true;
-  totalDragDist = 0; // 마우스를 누를 때마다 누적 드래그 거리 초기화
-  lastMX = e.clientX;
-  lastMY = e.clientY;
-});
-
-// 마우스 무브 시 회전 가속 및 거리 누적
-window.addEventListener('mousemove', e=>{
-  if(!started || !dragging) return;
-  const dx = e.clientX - lastMX;
-  const dy = e.clientY - lastMY;
-  
-  totalDragDist += Math.abs(dx) + Math.abs(dy); // 움직인 총 거리를 기록
-
-  yaw   -= dx * 0.004;
-  pitch -= dy * 0.004;
-  pitch = Math.max(-1.55, Math.min(1.55, pitch));
-  
-  lastMX = e.clientX;
-  lastMY = e.clientY;
-});
-
-// [버그 전면 수정]: 마우스를 뗄 때(mouseup) 이동한 거리가 극소량이거나 제자리 클릭이면 '무조건 타격/설치 판정' 처리
-window.addEventListener('mouseup', e=>{
-  if(!started || !dragging) return;
-  dragging = false;
-
-  // 임계값(Threshold)을 8픽셀 미만으로 책정하여 미세한 흔들림 속에서도 클릭이 무조건 발동하도록 보정
-  if (totalDragDist < 8) {
-    if(e.button === 0) { // 좌클릭 (제거)
-      isSwinging = true; swingTime = 0; // 3D 애니메이션 큐 발동
-      doBreak();
-    }
-    else if(e.button === 2) { // 우클릭 (설치)
-      isSwinging = true; swingTime = 0;
-      doPlace();
-    }
-  }
-});
-
 canvas.addEventListener('contextmenu', e=>e.preventDefault());
 window.addEventListener('wheel', e=>{
   if(!started) return;
   selID=(selID+(e.deltaY>0?1:-1)+BTYPES.length)%BTYPES.length;
-  updateHB();
-  rebuild3DHandItem();
+  updateHB(); rebuild3DHandItem();
 },{passive:true});
 
 const rc = new THREE.Raycaster(); rc.far=7;
@@ -417,7 +402,7 @@ function doBreak(){
 }
 
 function doPlace(){
-  if(BTYPES[selID].isTool) return; // 곡괭이는 설치에서 배제
+  if(BTYPES[selID].isTool) return; 
   const h=raycast(); if(!h) return;
   const n=h.face.normal;
   const{x,y,z}=h.object.userData;
@@ -436,7 +421,7 @@ function buildHB(){
     if(b.isTool) c.style.background = "linear-gradient(135deg, #b0bec5 40%, #8b5a2b 0)";
     const l=document.createElement('div'); l.className='slot-label'; l.textContent=b.name;
     d.append(n,c,l);
-    d.onclick=()=>{ selID=i; updateHB(); rebuild3DHandItem(); focusGame(); };
+    d.onclick=()=>{ selID=i; updateHB(); rebuild3DHandItem(); };
     hb.appendChild(d);
   });
 }
@@ -452,8 +437,6 @@ function loop(ts){
   if(!started){ renderer.render(scene,camera); return; }
 
   updateAnimals(dt);
-  
-  // 3D 손 위치 동기화 및 휘두르기 애니메이션 루틴 업데이트
   update3DHandAnimation(dt);
 
   const sy=Math.sin(yaw), cy=Math.cos(yaw);
@@ -468,7 +451,7 @@ function loop(ts){
   PL.vy += GRAV*dt; PL.onGround = false;
   movePlayer(mx*SPEED*dt, PL.vy*dt, mz*SPEED*dt);
 
-  if(PL.y < -10){ PL.y=hAt(Math.floor(PL.x),Math.floor(PL.z))+3; PL.vy=0; }
+  if(PL.y < -10){ PL.y=hAt(Math.floor(PL.x),Math.floor(Math.floor(PL.z)))+3; PL.vy=0; }
 
   camera.position.set(PL.x, PL.y+EYE, PL.z);
   camera.quaternion.setFromEuler(new THREE.Euler(pitch,yaw,0,'YXZ'));
@@ -491,11 +474,10 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   PL.x=WS/2+0.5; PL.z=WS/2+0.5; PL.y=hAt(Math.floor(PL.x), Math.floor(PL.z))+2;
   camera.position.set(PL.x, PL.y+EYE, PL.z);
   buildHB();
-  
-  // 게임이 시작될 때 카메라 앞에 3D 오른팔 엔진 레이어 안착시킴
   init3DHand();
   
-  focusGame();
+  // 시작 버튼 누른 직후 자동 잠금 유도
+  setTimeout(requestPointerLock, 100);
   requestAnimationFrame(loop);
 });
 </script>
@@ -503,8 +485,12 @@ document.getElementById('startBtn').addEventListener('click',()=>{
 </html>
 """
 
-st.title("⛏ Minecraft 3D (완전체 3D 복셀 손 & 버그 전면 수정본)")
-st.caption("2D 이미지/CSS 오버레이 방식을 폐기하고, 마우스 변위 연산 버그를 잡아 시점 회전 중에도 완벽하게 블록이 상호작용합니다.")
+st.title("⛏ Minecraft 3D (마우스 무브 시점 고정 적용)")
+st.caption("이제 드래그할 필요가 없습니다. 화면을 클릭해 마우스를 가두면 고개를 자유롭게 돌릴 수 있습니다.")
 
-# 스트림릿 내장 아이프레임 렌더러 파트 호출
-components.html(minecraft_3d_hand_html, height=750, scrolling=False)
+# iframe 렌더러에 허용할 샌드박스 보안 토큰 주입 (가장 중요)
+components.html(
+    minecraft_pointer_lock_html, 
+    height=750, 
+    scrolling=False
+)
