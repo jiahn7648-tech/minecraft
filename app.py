@@ -3,17 +3,17 @@ import streamlit.components.v1 as components
 
 # 스트림릿 페이지 설정 (전체 화면 최적화)
 st.set_page_config(
-    page_title="Minecraft 3D (Enhanced) - Streamlit",
+    page_title="Minecraft 3D (3D Hand & Bug Fix) - Streamlit",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-minecraft_enhanced_html = """
+minecraft_3d_hand_html = """
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>Minecraft 3D - Enhanced</title>
+<title>Minecraft 3D - 3D Hand Fixed</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#000; overflow:hidden; font-family:monospace; user-select:none; }
@@ -64,56 +64,6 @@ canvas { display:block; outline:none; width:100vw; height:100vh; }
 .slot-color { width:26px; height:26px; border-radius:3px; border:1px solid rgba(255,255,255,0.4); }
 .slot-label { font-size:9px; color:#eee; margin-top:2px; font-weight:bold; }
 .slot-num   { position:absolute; top:2px; left:4px; font-size:9px; color:#aaa; }
-
-/* 1인칭 플레이어 손 및 아이템 뷰 */
-#hand-container {
-  position: absolute; bottom: 0; right: 10%;
-  width: 300px; height: 300px;
-  pointer-events: none;
-  display: flex; align-items: flex-end; justify-content: center;
-  transform-origin: bottom right;
-  transition: transform 0.1s ease;
-}
-.hand-arm {
-  position: absolute; bottom: -80px; right: 20px;
-  width: 70px; height: 200px;
-  background: #e0a96d; /* 플레이어 피부색 */
-  border: 4px solid #3e2723; border-radius: 10px 10px 0 0;
-  transform: rotate(-15deg);
-}
-.held-item {
-  position: absolute; bottom: 60px; right: 60px;
-  width: 120px; height: 120px;
-  transform-origin: bottom right;
-  display: flex; align-items: center; justify-content: center;
-}
-/* CSS로 가볍게 구현한 픽셀 곡괭이 형태 */
-.pickaxe-art {
-  position: relative; width: 14px; height: 100px; background: #8b5a2b; /* 자루 */
-  transform: rotate(35deg);
-}
-.pickaxe-art::before {
-  content: ''; position: absolute; top: 0; left: -33px;
-  width: 80px; height: 20px; background: #b0bec5; /* 곡괭이 머리철 */
-  border-radius: 4px; border: 2px solid #37474f;
-}
-/* 블록 아이템 홀더 */
-.block-art {
-  width: 60px; height: 60px;
-  border: 3px solid rgba(0,0,0,0.4);
-  box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
-  transform: rotate(-10deg) skewX(10deg);
-}
-
-/* 애니메이션 동작 클래스 */
-.swing-animation {
-  animation: pickaxeSwing 0.25s ease-in-out;
-}
-@keyframes pickaxeSwing {
-  0% { transform: rotate(0deg) translateY(0); }
-  50% { transform: rotate(-45deg) translateY(-30px) translateX(-20px); }
-  100% { transform: rotate(0deg) translateY(0); }
-}
 </style>
 </head>
 <body>
@@ -121,12 +71,12 @@ canvas { display:block; outline:none; width:100vw; height:100vh; }
 
 <div id="start">
   <h1>⛏ MINECRAFT 3D</h1>
-  <p style="color:#cef;font-size:15px;margin-bottom:14px">Animals & First-Person Hand Update</p>
-  <p><b>[중요]</b> 키보드가 안 먹히면 화면을 한 번 클릭하세요!</p>
+  <p style="color:#cef;font-size:15px;margin-bottom:14px">Pure 3D Hand & Action Bug Fixed</p>
+  <p><b>[안내]</b> 시점을 돌리며 클릭해도 블록 제거/설치가 정상 작동합니다.</p>
   <p style="margin-top:10px;">🖱 <b>마우스 드래그</b>: 시점 회전</p>
   <p>W, A, S, D / 방향키: 이동 &nbsp;|&nbsp; Space: 점프</p>
-  <p>좌클릭: 블록 제거 (곡괭이질 모션) &nbsp;|&nbsp; 우클릭: 블록 설치</p>
-  <p>1 ~ 7 / 마우스 휠: 도구 및 블록 선택</p>
+  <p>좌클릭: 블록 제거 (3D 곡괭이 스윙) &nbsp;|&nbsp; 우클릭: 블록 설치</p>
+  <p>1 ~ 7 / 마우스 휠: 도구 선택</p>
   <button id="startBtn">▶ 게임 시작</button>
 </div>
 
@@ -134,27 +84,20 @@ canvas { display:block; outline:none; width:100vw; height:100vh; }
   <div id="cross"></div>
   <div id="info">
     <div id="ipos">위치: 0, 0, 0</div>
-    <div id="iblk">도구: 철 곡괭이</div>
+    <div id="iblk">선택: 철 곡괭이</div>
     <div id="ifps">FPS: --</div>
   </div>
   <div id="tip">
     드래그: 시점회전<br>
-    좌클릭: 블록제거/곡괭이질<br>
+    좌클릭: 블록제거 (3D 애니메이션)<br>
     우클릭: 블록설치<br>
     WASD: 이동 | Space: 점프
   </div>
-  
-  <div id="hand-container">
-    <div class="hand-arm"></div>
-    <div id="item-renderer" class="held-item"></div>
-  </div>
-
   <div id="hotbar"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// 인벤토리 목록 구성 (벽돌 제외하고 곡괭이 탑재)
 const BTYPES = [
   {name:'철 곡괭이', color:0xb0bec5, isTool:true},
   {name:'잔디',     color:0x5d8a2e, isTool:false},
@@ -181,7 +124,6 @@ function hAt(x,z){
 function genWorld(){
   for(let x=0;x<WS;x++) for(let z=0;z<WS;z++){
     const h=hAt(x,z);
-    // 인덱스 매핑 보정 (0번이 곡괭이이므로 월드 배치 시 생략하거나 알맞게 슬라이싱)
     for(let y=0;y<=h;y++) setV(x,y,z, y===h?1:y>=h-2?2:3);
     if(Math.random()<0.04&&h<14){
       const th=3+Math.floor(Math.random()*3);
@@ -197,9 +139,11 @@ const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.setSize(window.innerWidth,window.innerHeight);
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 scene.fog = new THREE.Fog(0x87ceeb,22,52);
+
 const camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.05,80);
 scene.add(new THREE.AmbientLight(0xffffff,0.65));
 const sun=new THREE.DirectionalLight(0xffffff,0.7);
@@ -229,63 +173,32 @@ function buildScene(){
   }
 }
 
-// 🐏 동물 (양/소) 데이터 및 AI 시스템 파트
+// 🐏 동물 시스템
 const animals = [];
 const animalGroup = new THREE.Group();
 scene.add(animalGroup);
 
 function spawnAnimals() {
-  const types = [
-    { name: 'sheep', bodyColor: 0xffffff, headColor: 0xf5f5f5 }, // 양
-    { name: 'cow',   bodyColor: 0x5c4033, headColor: 0x3d2723 }  // 소
-  ];
-
+  const types = [{ name: 'sheep', bodyColor: 0xffffff, headColor: 0xf5f5f5 }, { name: 'cow', bodyColor: 0x5c4033, headColor: 0x3d2723 }];
   for(let i=0; i<8; i++) {
     const type = types[Math.floor(Math.random() * types.length)];
     const ax = 5 + Math.random() * (WS - 10);
     const az = 5 + Math.random() * (WS - 10);
     const ay = hAt(Math.floor(ax), Math.floor(az)) + 1;
 
-    // 큐브 조립형 동물 메쉬 생성
     const mGroup = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 1.2), new THREE.MeshLambertMaterial({color: type.bodyColor}));
+    body.position.y = 0.4; mGroup.add(body);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshLambertMaterial({color: type.headColor}));
+    head.position.set(0, 0.6, 0.6); mGroup.add(head);
     
-    // 몸통
-    const bodyGeo = new THREE.BoxGeometry(0.8, 0.6, 1.2);
-    const bodyMat = new THREE.MeshLambertMaterial({color: type.bodyColor});
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = 0.4;
-    mGroup.add(body);
-
-    // 머리
-    const headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-    const headMat = new THREE.MeshLambertMaterial({color: type.headColor});
-    const head = new THREE.Mesh(headGeo, headMat);
-    head.position.set(0, 0.6, 0.6);
-    mGroup.add(head);
-
-    // 다리 4개
     const legGeo = new THREE.BoxGeometry(0.18, 0.4, 0.18);
     const legMat = new THREE.MeshLambertMaterial({color: type.headColor});
-    const legPositions = [
-      [-0.3, 0, 0.4], [0.3, 0, 0.4],
-      [-0.3, 0, -0.4], [0.3, 0, -0.4]
-    ];
-    legPositions.forEach(pos => {
-      const leg = new THREE.Mesh(legGeo, legMat);
-      leg.position.set(...pos);
-      mGroup.add(leg);
+    [[-0.3, 0, 0.4], [0.3, 0, 0.4], [-0.3, 0, -0.4], [0.3, 0, -0.4]].forEach(pos => {
+      const leg = new THREE.Mesh(legGeo, legMat); leg.position.set(...pos); mGroup.add(leg);
     });
-
-    mGroup.position.set(ax, ay, az);
-    animalGroup.add(mGroup);
-
-    animals.push({
-      mesh: mGroup,
-      x: ax, y: ay, z: az,
-      vx: 0, vz: 0,
-      changeTimer: 0,
-      type: type.name
-    });
+    mGroup.position.set(ax, ay, az); animalGroup.add(mGroup);
+    animals.push({ mesh: mGroup, x: ax, y: ay, z: az, vx: 0, vz: 0, changeTimer: 0 });
   }
 }
 
@@ -293,96 +206,143 @@ function updateAnimals(dt) {
   animals.forEach(a => {
     a.changeTimer -= dt;
     if(a.changeTimer <= 0) {
-      // 무작위로 배회하거나 멈추는 AI 기작
       if(Math.random() < 0.6) {
         const angle = Math.random() * Math.PI * 2;
-        a.vx = Math.cos(angle) * 1.5;
-        a.vz = Math.sin(angle) * 1.5;
+        a.vx = Math.cos(angle) * 1.5; a.vz = Math.sin(angle) * 1.5;
         a.mesh.rotation.y = -angle + Math.PI/2;
-      } else {
-        a.vx = 0; a.vz = 0;
-      }
+      } else { a.vx = 0; a.vz = 0; }
       a.changeTimer = 2 + Math.random() * 4;
     }
-
-    // 이동 연산 및 지형 결합 (바닥 낙하)
-    a.x += a.vx * dt;
-    a.z += a.vz * dt;
-    
+    a.x += a.vx * dt; a.z += a.vz * dt;
     const curH = hAt(Math.floor(a.x), Math.floor(a.z)) + 1;
-    if(a.y > curH) {
-      a.y += -9.8 * dt; // 중력 적용
-      if(a.y < curH) a.y = curH;
-    } else {
-      a.y = curH;
-    }
-    
+    a.y = a.y > curH ? a.y - 9.8 * dt : curH;
     a.mesh.position.set(a.x, a.y, a.z);
   });
 }
 
-// 플레이어 물리 파트 
+// 🛡️ 플레이어 물리 파트
 const PL = {x:WS/2+0.5, y:13, z:WS/2+0.5, vy:0, onGround:false};
-const EYE = 1.6;   
-const PW  = 0.3;   
-const PH  = 1.8;   
-const SPEED = 5.5;
-const GRAV  = -28;
-const JV    = 9.0;
+const EYE = 1.6, PW = 0.3, PH = 1.8, SPEED = 5.5, GRAV = -28, JV = 9.0;
 
-function isSolid(x,y,z){
-  return getV(Math.floor(x), Math.floor(y), Math.floor(z)) !== undefined;
-}
-
+function isSolid(x,y,z){ return getV(Math.floor(x), Math.floor(y), Math.floor(z)) !== undefined; }
 function collidesHoriz(px, py, pz){
-  const ys = [0.1, 0.9, PH-0.1];
-  for(const oy of ys) {
-    if( isSolid(px-PW, py+oy, pz-PW) || isSolid(px+PW, py+oy, pz-PW) ||
-        isSolid(px-PW, py+oy, pz+PW) || isSolid(px+PW, py+oy, pz+PW) )
-      return true;
+  for(const oy of [0.1, 0.9, PH-0.1]) {
+    if(isSolid(px-PW, py+oy, pz-PW) || isSolid(px+PW, py+oy, pz-PW) || isSolid(px-PW, py+oy, pz+PW) || isSolid(px+PW, py+oy, pz+PW)) return true;
   }
   return false;
 }
-
-function collidesDown(px, py, pz){
-  return isSolid(px-PW,py,pz-PW)||isSolid(px+PW,py,pz-PW)||
-         isSolid(px-PW,py,pz+PW)||isSolid(px+PW,py,pz+PW);
-}
-
-function collidesUp(px, py, pz){
-  const top = py + PH;
-  return isSolid(px-PW,top,pz-PW)||isSolid(px+PW,top,pz-PW)||
-         isSolid(px-PW,top,pz+PW)||isSolid(px+PW,top,pz+PW);
-}
+function collidesDown(px, py, pz){ return isSolid(px-PW,py,pz-PW)||isSolid(px+PW,py,pz-PW)||isSolid(px-PW,py,pz+PW)||isSolid(px+PW,py,pz+PW); }
+function collidesUp(px, py, pz){ const top = py + PH; return isSolid(px-PW,top,pz-PW)||isSolid(px+PW,top,pz-PW)||isSolid(px-PW,top,pz+PW)||isSolid(px+PW,top,pz+PW); }
 
 function movePlayer(dx, dy, dz){
-  PL.x += dx;
-  if(collidesHoriz(PL.x, PL.y, PL.z)) PL.x -= dx;
-
-  PL.z += dz;
-  if(collidesHoriz(PL.x, PL.y, PL.z)) PL.z -= dz;
-
+  PL.x += dx; if(collidesHoriz(PL.x, PL.y, PL.z)) PL.x -= dx;
+  PL.z += dz; if(collidesHoriz(PL.x, PL.y, PL.z)) PL.z -= dz;
   PL.y += dy;
-  if(dy < 0 && collidesDown(PL.x, PL.y, PL.z)){
-    PL.y = Math.floor(PL.y) + 1;
-    PL.vy = 0;
-    PL.onGround = true;
-  } else if(dy > 0 && collidesUp(PL.x, PL.y, PL.z)){
-    PL.y = Math.floor(PL.y + PH) - PH - 0.005;
-    PL.vy = 0;
+  if(dy < 0 && collidesDown(PL.x, PL.y, PL.z)){ PL.y = Math.floor(PL.y) + 1; PL.vy = 0; PL.onGround = true; }
+  else if(dy > 0 && collidesUp(PL.x, PL.y, PL.z)){ PL.y = Math.floor(PL.y + PH) - PH - 0.005; PL.vy = 0; }
+}
+
+// 🖐️ [핵심 인게임 3D 손 및 아이템 구조화 시스템]
+let handGroup;     // 카메라에 기속되어 따라다닐 3D 손 그룹
+let current3DItem; // 현재 들고 있는 3D 메쉬 오브젝트 참조변수
+let swingTime = 0;
+let isSwinging = false;
+
+function init3DHand() {
+  handGroup = new THREE.Group();
+  scene.add(handGroup); // 월드에 추가 후 루프에서 카메라 좌표계로 연속 추적 동기화
+  rebuild3DHandItem();
+}
+
+function rebuild3DHandItem() {
+  if (!handGroup) return;
+  
+  // 기존 잔여 메쉬 제거
+  while(handGroup.children.length > 0){
+    handGroup.remove(handGroup.children[0]);
+  }
+
+  // 1. 플레이어의 3D 오른팔 복셀 생성
+  const armGeo = new THREE.BoxGeometry(0.25, 0.25, 0.7);
+  const armMat = new THREE.MeshLambertMaterial({ color: 0xe0a96d });
+  const armMesh = new THREE.Mesh(armGeo, armMat);
+  // 카메라 우측 하단에 배치하기 위한 초기 오프셋
+  armMesh.position.set(0.35, -0.35, -0.6);
+  armMesh.rotation.set(-0.2, -0.2, 0);
+  handGroup.add(armMesh);
+
+  // 2. 들고 있는 아이템 메쉬 분기 설계
+  const current = BTYPES[selID];
+  const itemGroup = new THREE.Group();
+
+  if (current.isTool) {
+    // ⛏️ 3D 복셀 조합형 철 곡괭이 제작
+    // 자루(막대기)
+    const stickGeo = new THREE.BoxGeometry(0.05, 0.5, 0.05);
+    const stickMat = new THREE.MeshLambertMaterial({ color: 0x8b5a2b });
+    const stick = new THREE.Mesh(stickGeo, stickMat);
+    stick.position.set(0, 0.2, 0);
+    itemGroup.add(stick);
+
+    // 머리 철조각 (날 부위)
+    const headGeo = new THREE.BoxGeometry(0.4, 0.06, 0.06);
+    const headMat = new THREE.MeshLambertMaterial({ color: 0xb0bec5 });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.set(0, 0.42, 0);
+    itemGroup.add(head);
+    
+    itemGroup.rotation.set(0.3, 0, -0.4);
+  } else {
+    // 📦 3D 복셀 축소판 블록 오브젝트 제작
+    const blockGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+    const blockMat = new THREE.MeshLambertMaterial({ color: current.color });
+    const blockMesh = new THREE.Mesh(blockGeo, blockMat);
+    blockMesh.position.set(0, 0.15, 0);
+    itemGroup.add(blockMesh);
+  }
+
+  // 아이템을 팔의 끝 지점(손 위치) 근처에 바인딩
+  itemGroup.position.set(0.35, -0.25, -0.75);
+  handGroup.add(itemGroup);
+  current3DItem = itemGroup; // 애니메이션 변형 타겟 지정
+}
+
+// 3D 스윙 애니메이션 구동 제어 엔진
+function update3DHandAnimation(dt) {
+  if (!handGroup) return;
+
+  // 1. 카메라의 물리적 위치와 회전값을 매 프레임 1:1 결합 (화면에 고정된 것처럼 보이게 함)
+  handGroup.position.copy(camera.position);
+  handGroup.quaternion.copy(camera.quaternion);
+
+  // 2. 좌클릭 발동 시 3D 아이템 회전각 연산 구현
+  if (isSwinging) {
+    swingTime += dt * 5.0; // 애니메이션 스피드 배수 정밀화
+    if (swingTime > Math.PI) {
+      swingTime = 0;
+      isSwinging = false;
+      current3DItem.rotation.x = 0; // 원위치 롤백
+    } else {
+      // 사인 파형 곡선 수식을 연동하여 타격 후 돌아오는 궤적 형성
+      const swingAngle = Math.sin(swingTime) * 1.2;
+      current3DItem.rotation.x = swingAngle;
+      current3DItem.rotation.z = -swingAngle * 0.4;
+    }
   }
 }
 
+// 🕹️ 조작 제어 및 충돌 수집 메커니즘
 const keys={};
 let yaw=0, pitch=0, selID=0, started=false;
 let dragging=false, lastMX=0, lastMY=0;
-let downX=0, downY=0, downBtn=0, dragMoved=false;
-const DRAG_THRESH = 5;
+
+// [버그 수정의 핵심]: 드래그 이동 거리 측정 방식을 절대 좌표 기반에서 이벤트 변위량으로 완전 변경하여 조작 씹힘 차단
+let totalDragDist = 0; 
 
 window.addEventListener('keydown', e=>{
   keys[e.code] = true;
   const n = parseInt(e.key);
-  if(n>=1&&n<=7){ selID=n-1; updateHB(); renderHandItem(); }
+  if(n>=1&&n<=7){ selID=n-1; updateHB(); rebuild3DHandItem(); }
   if(e.code==='Space') e.preventDefault();
 });
 window.addEventListener('keyup', e=>{ keys[e.code]=false; });
@@ -390,49 +350,49 @@ window.addEventListener('keyup', e=>{ keys[e.code]=false; });
 function focusGame() { canvas.focus(); }
 window.addEventListener('click', focusGame);
 
+// 마우스 다운 시점 초기화
 canvas.addEventListener('mousedown', e=>{
   if(!started) return;
   e.preventDefault();
   focusGame();
-  dragging=true; dragMoved=false;
-  downBtn=e.button; downX=e.clientX; downY=e.clientY;
-  lastMX=e.clientX; lastMY=e.clientY;
+  dragging = true;
+  totalDragDist = 0; // 마우스를 누를 때마다 누적 드래그 거리 초기화
+  lastMX = e.clientX;
+  lastMY = e.clientY;
 });
 
+// 마우스 무브 시 회전 가속 및 거리 누적
 window.addEventListener('mousemove', e=>{
-  if(!started||!dragging) return;
-  const dx=e.clientX-lastMX, dy=e.clientY-lastMY;
-  if(!dragMoved&&(Math.abs(e.clientX-downX)>DRAG_THRESH||Math.abs(e.clientY-downY)>DRAG_THRESH))
-    dragMoved=true;
-  yaw   -= dx*0.004;
-  pitch -= dy*0.004;
-  pitch = Math.max(-1.55, Math.min(1.55, pitch));
-  lastMX=e.clientX; lastMY=e.clientY;
+  if(!started || !dragging) return;
+  const dx = e.clientX - lastMX;
+  const dy = e.clientY - lastMY;
   
-  // 시점 전환 시 손 흔들림 효과 연동
-  const handContainer = document.getElementById('hand-container');
-  if(handContainer) {
-    handContainer.style.transform = `translateX(${-dx * 0.3}px) translateY(${Math.abs(dy) * 0.2}px)`;
-  }
+  totalDragDist += Math.abs(dx) + Math.abs(dy); // 움직인 총 거리를 기록
+
+  yaw   -= dx * 0.004;
+  pitch -= dy * 0.004;
+  pitch = Math.max(-1.55, Math.min(1.55, pitch));
+  
+  lastMX = e.clientX;
+  lastMY = e.clientY;
 });
 
+// [버그 전면 수정]: 마우스를 뗄 때(mouseup) 이동한 거리가 극소량이거나 제자리 클릭이면 '무조건 타격/설치 판정' 처리
 window.addEventListener('mouseup', e=>{
-  if(!started) return;
-  if(!dragMoved){
-    if(downBtn===0) {
-      triggerSwingAnimation();
+  if(!started || !dragging) return;
+  dragging = false;
+
+  // 임계값(Threshold)을 8픽셀 미만으로 책정하여 미세한 흔들림 속에서도 클릭이 무조건 발동하도록 보정
+  if (totalDragDist < 8) {
+    if(e.button === 0) { // 좌클릭 (제거)
+      isSwinging = true; swingTime = 0; // 3D 애니메이션 큐 발동
       doBreak();
     }
-    if(downBtn===2) {
-      triggerSwingAnimation();
+    else if(e.button === 2) { // 우클릭 (설치)
+      isSwinging = true; swingTime = 0;
       doPlace();
     }
   }
-  dragging=false; dragMoved=false;
-  
-  // 손 전환 원위치 복귀
-  const handContainer = document.getElementById('hand-container');
-  if(handContainer) handContainer.style.transform = 'none';
 });
 
 canvas.addEventListener('contextmenu', e=>e.preventDefault());
@@ -440,7 +400,7 @@ window.addEventListener('wheel', e=>{
   if(!started) return;
   selID=(selID+(e.deltaY>0?1:-1)+BTYPES.length)%BTYPES.length;
   updateHB();
-  renderHandItem();
+  rebuild3DHandItem();
 },{passive:true});
 
 const rc = new THREE.Raycaster(); rc.far=7;
@@ -451,90 +411,50 @@ function raycast(){
 }
 
 function doBreak(){
-  // 현재 들고 있는 아이템이 곡괭이(0번 슬롯)일 때만 부서지도록 유도할 수 있으나 유연성을 위해 기본값 배치
   const h=raycast(); if(!h) return;
   const{x,y,z}=h.object.userData;
   setV(x,y,z,null); delMesh(x,y,z);
 }
 
 function doPlace(){
-  if(BTYPES[selID].isTool) return; // 곡괭이는 설치 불가능
+  if(BTYPES[selID].isTool) return; // 곡괭이는 설치에서 배제
   const h=raycast(); if(!h) return;
   const n=h.face.normal;
   const{x,y,z}=h.object.userData;
   const nx=x+Math.round(n.x), ny=y+Math.round(n.y), nz=z+Math.round(n.z);
-  if( Math.abs(nx+0.5-PL.x)<PW+0.5 &&
-      ny+1>PL.y && ny<PL.y+PH &&
-      Math.abs(nz+0.5-PL.z)<PW+0.5 ) return;
+  if( Math.abs(nx+0.5-PL.x)<PW+0.5 && ny+1>PL.y && ny<PL.y+PH && Math.abs(nz+0.5-PL.z)<PW+0.5 ) return;
   if(getV(nx,ny,nz)===undefined){ setV(nx,ny,nz,selID); addMesh(nx,ny,nz,selID); }
-}
-
-// 1인칭 손 스윙 애니메이션 처리 함수
-function triggerSwingAnimation() {
-  const container = document.getElementById('hand-container');
-  if(!container) return;
-  container.classList.remove('swing-animation');
-  void container.offsetWidth; // 브라우저 리플로우 강제 유도
-  container.add('swing-animation');
-  container.className = 'swing-animation';
-}
-
-// 들고 있는 도구/블록 UI를 1인칭 화면에 갱신
-function renderHandItem() {
-  const target = document.getElementById('item-renderer');
-  if(!target) return;
-  target.innerHTML = '';
-  
-  const current = BTYPES[selID];
-  if(current.isTool) {
-    // 곡괭이 형상 렌더링
-    const pick = document.createElement('div');
-    pick.className = 'pickaxe-art';
-    target.appendChild(pick);
-  } else {
-    // 일반 수치 블록 형상 렌더링
-    const block = document.createElement('div');
-    block.className = 'block-art';
-    block.style.background = '#' + current.color.toString(16).padStart(6, '0');
-    target.appendChild(block);
-  }
 }
 
 function buildHB(){
   const hb=document.getElementById('hotbar'); hb.innerHTML='';
   BTYPES.forEach((b,i)=>{
-    const d=document.createElement('div');
-    d.className='slot'+(i===selID?' active':'');
+    const d=document.createElement('div'); d.className='slot'+(i===selID?' active':'');
     const n=document.createElement('div'); n.className='slot-num'; n.textContent=i+1;
     const c=document.createElement('div'); c.className='slot-color';
     c.style.background='#'+b.color.toString(16).padStart(6,'0');
-    if(b.isTool) {
-       c.style.borderRadius = "0";
-       c.style.background = "linear-gradient(135deg, #b0bec5 40%, #8b5a2b 0)";
-    }
+    if(b.isTool) c.style.background = "linear-gradient(135deg, #b0bec5 40%, #8b5a2b 0)";
     const l=document.createElement('div'); l.className='slot-label'; l.textContent=b.name;
     d.append(n,c,l);
-    d.onclick=()=>{ selID=i; updateHB(); renderHandItem(); focusGame(); };
+    d.onclick=()=>{ selID=i; updateHB(); rebuild3DHandItem(); focusGame(); };
     hb.appendChild(d);
   });
 }
-
-function updateHB(){
-  document.querySelectorAll('.slot').forEach((s,i)=>s.classList.toggle('active',i===selID));
-}
+function updateHB(){ document.querySelectorAll('.slot').forEach((s,i)=>s.classList.toggle('active',i===selID)); }
 
 let last=0, fpsN=0, fpsT=0, fpsCur=0;
 function loop(ts){
   requestAnimationFrame(loop);
   const dt = Math.min((ts-last)/1000, 0.05); last=ts;
   fpsN++; fpsT+=dt;
-  if(fpsT>=1){ fpsCur=fpsN; fpsN=0; fpsT=0;
-    document.getElementById('ifps').textContent='FPS:'+fpsCur; }
+  if(fpsT>=1){ fpsCur=fpsN; fpsN=0; fpsT=0; document.getElementById('ifps').textContent='FPS:'+fpsCur; }
 
   if(!started){ renderer.render(scene,camera); return; }
 
-  // 동물 움직임 처리 엔진 작동
   updateAnimals(dt);
+  
+  // 3D 손 위치 동기화 및 휘두르기 애니메이션 루틴 업데이트
+  update3DHandAnimation(dt);
 
   const sy=Math.sin(yaw), cy=Math.cos(yaw);
   let mx=0, mz=0;
@@ -542,16 +462,10 @@ function loop(ts){
   if(keys['KeyS']||keys['ArrowDown']) { mx+=sy; mz+=cy; }
   if(keys['KeyD']||keys['ArrowRight']){ mx+=cy; mz-=sy; }
   if(keys['KeyA']||keys['ArrowLeft']) { mx-=cy; mz+=sy; }
-  const ml=Math.sqrt(mx*mx+mz*mz);
-  if(ml>0){ mx/=ml; mz/=ml; }
+  const ml=Math.sqrt(mx*mx+mz*mz); if(ml>0){ mx/=ml; mz/=ml; }
 
-  if((keys['Space'])&&PL.onGround){
-    PL.vy=JV; PL.onGround=false;
-  }
-
-  PL.vy += GRAV*dt;
-  PL.onGround = false;
-
+  if((keys['Space'])&&PL.onGround){ PL.vy=JV; PL.onGround=false; }
+  PL.vy += GRAV*dt; PL.onGround = false;
   movePlayer(mx*SPEED*dt, PL.vy*dt, mz*SPEED*dt);
 
   if(PL.y < -10){ PL.y=hAt(Math.floor(PL.x),Math.floor(PL.z))+3; PL.vy=0; }
@@ -565,8 +479,7 @@ function loop(ts){
 }
 
 window.addEventListener('resize',()=>{
-  camera.aspect=window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
+  camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth,window.innerHeight);
 });
 
@@ -575,11 +488,13 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   document.getElementById('hud').style.display='block';
   started=true;
   genWorld(); buildScene(); spawnAnimals();
-  PL.x=WS/2+0.5; PL.z=WS/2+0.5;
-  PL.y=hAt(Math.floor(PL.x), Math.floor(PL.z))+2;
+  PL.x=WS/2+0.5; PL.z=WS/2+0.5; PL.y=hAt(Math.floor(PL.x), Math.floor(PL.z))+2;
   camera.position.set(PL.x, PL.y+EYE, PL.z);
   buildHB();
-  renderHandItem();
+  
+  // 게임이 시작될 때 카메라 앞에 3D 오른팔 엔진 레이어 안착시킴
+  init3DHand();
+  
   focusGame();
   requestAnimationFrame(loop);
 });
@@ -588,8 +503,8 @@ document.getElementById('startBtn').addEventListener('click',()=>{
 </html>
 """
 
-st.title("⛏ Minecraft 3D (동물 & 1인칭 애니메이션 업데이트)")
-st.caption("벽돌 대신 곡괭이가 인벤토리에 탑재되었으며 양/소 동물들이 스폰됩니다. 좌클릭으로 곡괭이질을 해보세요.")
+st.title("⛏ Minecraft 3D (완전체 3D 복셀 손 & 버그 전면 수정본)")
+st.caption("2D 이미지/CSS 오버레이 방식을 폐기하고, 마우스 변위 연산 버그를 잡아 시점 회전 중에도 완벽하게 블록이 상호작용합니다.")
 
-# 아이프레임을 사용해 최종 결과물 화면 사출
-components.html(minecraft_enhanced_html, height=750, scrolling=False)
+# 스트림릿 내장 아이프레임 렌더러 파트 호출
+components.html(minecraft_3d_hand_html, height=750, scrolling=False)
