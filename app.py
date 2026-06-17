@@ -3,21 +3,21 @@ import streamlit.components.v1 as components
 
 # 스트림릿 페이지 설정
 st.set_page_config(
-    page_title="Minecraft 3D (Physics & 3rd Person) - Streamlit",
+    page_title="Minecraft 3D (Drag Version) - Streamlit",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-minecraft_advanced_html = """
+minecraft_drag_html = """
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>Minecraft 3D - Advanced Features</title>
+<title>Minecraft 3D - Drag View Version</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#000; overflow:hidden; font-family:monospace; user-select:none; }
-canvas { display:block; outline:none; width:100vw; height:100vh; cursor: crosshair; }
+canvas { display:block; outline:none; width:100vw; height:100vh; cursor: move; }
 #start {
   position:fixed; inset:0; background:rgba(0,0,0,0.9);
   display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -64,11 +64,6 @@ canvas { display:block; outline:none; width:100vw; height:100vh; cursor: crossha
 .slot-color { width:26px; height:26px; border-radius:3px; border:1px solid rgba(255,255,255,0.4); }
 .slot-label { font-size:9px; color:#eee; margin-top:2px; font-weight:bold; }
 .slot-num   { position:absolute; top:2px; left:4px; font-size:9px; color:#aaa; }
-#lock-warn {
-  position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
-  background: rgba(76, 175, 80, 0.95); color: #fff; padding: 10px 24px; border-radius: 20px;
-  font-size: 14px; display: none; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-}
 </style>
 </head>
 <body>
@@ -76,10 +71,10 @@ canvas { display:block; outline:none; width:100vw; height:100vh; cursor: crossha
 
 <div id="start">
   <h1>⛏ MINECRAFT 3D</h1>
-  <p style="color:#cef;font-size:15px;margin-bottom:14px">Sand Physics & 3rd Person Animation Update</p>
-  <p>🖱 <b>마우스 이동</b>: 그냥 화면이 돌아갑니다 (클릭 시 고정)</p>
-  <p>💡 <b>G 키</b>: 1인칭 ↔ 3인칭 시점 전환 (걷기 애니메이션 구현)</p>
-  <p>⏳ <b>모래 블록(6번)</b>: 공중에 설치하면 중력으로 떨어집니다!</p>
+  <p style="color:#cef;font-size:15px;margin-bottom:14px">Drag View Mode (Pointer Lock Removed)</p>
+  <p>🖱 <b>마우스 드래그</b>: 화면을 클릭하고 문지르면 시점이 돌아갑니다.</p>
+  <p>💡 <b>G 키</b>: 1인칭 ↔ 3인칭 시점 전환 (걷기 애니메이션 포함)</p>
+  <p>⏳ <b>모래 블록(6번)</b>: 공중에 설치하면 아래로 떨어집니다!</p>
   <p>W, A, S, D: 이동 | Space: 점프 | 좌클릭: 제거 | 우클릭: 설치</p>
   <button id="startBtn">▶ 게임 시작</button>
 </div>
@@ -93,12 +88,11 @@ canvas { display:block; outline:none; width:100vw; height:100vh; cursor: crossha
     <div id="ifps">FPS: --</div>
   </div>
   <div id="tip">
-    <b>G</b>: 시점 전환 (1인칭/3인칭)<br>
-    마우스 무브: 시점회전<br>
+    <b>마우스 드래그</b>: 시점 회전<br>
+    <b>G</b>: 1인칭/3인칭 시점 전환<br>
     좌클릭: 블록제거 | 우클릭: 블록설치<br>
-    1 ~ 7: 슬롯 선택 (6번: 모래 물리 블록)
+    1 ~ 7: 슬롯 선택 (6번: 모래 물리)
   </div>
-  <div id="lock-warn">💡 화면을 다시 클릭하면 마우스가 잠기고 화면이 돌아갑니다!</div>
   <div id="hotbar"></div>
 </div>
 
@@ -111,7 +105,7 @@ const BTYPES = [
   {name:'돌',       color:0x888888, isTool:false},
   {name:'나무',     color:0x8B4513, isTool:false},
   {name:'잎',       color:0x2e7d32, isTool:false},
-  {name:'모래',     color:0xd4b483, isTool:false}, // ID: 6 -> 중력 모래
+  {name:'모래',     color:0xd4b483, isTool:false},
 ];
 
 const voxels = {};
@@ -226,29 +220,22 @@ function updateAnimals(dt) {
   });
 }
 
-// ⏳ [모래 블록 중력 물리엔진 시스템]
+// ⏳ 모래 블록 중력 물리엔진
 const fallingSands = [];
 
 function checkSandPhysics() {
-  // 월드 전체에서 공중에 뜬 모래(ID: 6)가 있는지 스캔
   for (const k in voxels) {
     if (voxels[k] === 6) {
       const [x, y, z] = k.split('|').map(Number);
-      // 바로 아래 칸이 비어있다면 낙하 시작
       if (getV(x, y - 1, z) === undefined && y > 0) {
         setV(x, y, z, null);
         delMesh(x, y, z);
         
-        // 동적 물리 메쉬 생성
         const sandMesh = new THREE.Mesh(baseGeo, mat(6));
         sandMesh.position.set(x + 0.5, y + 0.5, z + 0.5);
         scene.add(sandMesh);
         
-        fallingSands.push({
-          mesh: sandMesh,
-          x: x, y: y, z: z,
-          targetY: y
-        });
+        fallingSands.push({ mesh: sandMesh, x: x, y: y, z: z, targetY: y });
       }
     }
   }
@@ -257,34 +244,27 @@ function checkSandPhysics() {
 function updateSandPhysics(dt) {
   for (let i = fallingSands.length - 1; i >= 0; i--) {
     const s = fallingSands[i];
-    s.mesh.position.y -= 12 * dt; // 초당 12칸 속도로 낙하
-    
+    s.mesh.position.y -= 12 * dt;
     const nextY = Math.floor(s.mesh.position.y - 0.5);
     
-    // 바닥이나 다른 블록에 충돌했는지 검사
     if (getV(s.x, nextY, s.z) !== undefined || nextY < 0) {
       const landY = nextY + 1;
-      // 월드 데이터에 블록 재안착
       setV(s.x, landY, s.z, 6);
       addMesh(s.x, landY, s.z, 6);
-      
       scene.remove(s.mesh);
       fallingSands.splice(i, 1);
-      
-      // 안착 후 그 주변이나 위쪽 모래들에 연쇄 반응 유도
       checkSandPhysics();
     }
   }
 }
 
-
-// 🛡️ 플레이어 데이터 및 3인칭 모델 구조
+// 🛡️ 플레이어 데이터 및 3인칭 모델
 const PL = {x:WS/2+0.5, y:13, z:WS/2+0.5, vy:0, onGround:false};
 const EYE = 1.6, PW = 0.3, PH = 1.8, SPEED = 5.5, GRAV = -28, JV = 9.0;
 
-let isThirdPerson = false; // 기본 1인칭
-let playerModelGroup;      // 3인칭용 전체 아바타 그룹
-let pLeftLeg, pRightLeg, pLeftArm, pRightArm; // 애니메이션 타겟 파트들
+let isThirdPerson = false; 
+let playerModelGroup;      
+let pLeftLeg, pRightLeg, pLeftArm, pRightArm; 
 let animTime = 0;
 
 function isSolid(x,y,z){ return getV(Math.floor(x), Math.floor(y), Math.floor(z)) !== undefined; }
@@ -305,38 +285,27 @@ function movePlayer(dx, dy, dz){
   else if(dy > 0 && collidesUp(PL.x, PL.y, PL.z)){ PL.y = Math.floor(PL.y + PH) - PH - 0.005; PL.vy = 0; }
 }
 
-// 👤 [3인칭 전용 플레이어 완전체 복셀 메쉬 빌드]
 function initPlayerModel() {
   playerModelGroup = new THREE.Group();
-  
-  const blueMat = new THREE.MeshLambertMaterial({color: 0x00bcd4}); // 상의
-  const skinMat = new THREE.MeshLambertMaterial({color: 0xe0a96d}); // 피부
-  const pantsMat = new THREE.MeshLambertMaterial({color: 0x3f51b5}); // 바지
+  const blueMat = new THREE.MeshLambertMaterial({color: 0x00bcd4}); 
+  const skinMat = new THREE.MeshLambertMaterial({color: 0xe0a96d}); 
+  const pantsMat = new THREE.MeshLambertMaterial({color: 0x3f51b5}); 
 
-  // 몸통
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.25), blueMat);
-  torso.position.y = 0.75;
-  playerModelGroup.add(torso);
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.25), blueMat); torso.position.y = 0.75; playerModelGroup.add(torso);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), skinMat); head.position.y = 1.25; playerModelGroup.add(head);
 
-  // 머리
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), skinMat);
-  head.position.y = 1.25;
-  playerModelGroup.add(head);
-
-  // 왼다리 / 오른다리
   const legGeo = new THREE.BoxGeometry(0.2, 0.4, 0.22);
   pLeftLeg = new THREE.Mesh(legGeo, pantsMat); pLeftLeg.position.set(-0.13, 0.2, 0);
   pRightLeg = new THREE.Mesh(legGeo, pantsMat); pRightLeg.position.set(0.13, 0.2, 0);
   playerModelGroup.add(pLeftLeg, pRightLeg);
 
-  // 왼팔 / 오른팔
   const armGeo = new THREE.BoxGeometry(0.18, 0.6, 0.2);
   pLeftArm = new THREE.Mesh(armGeo, skinMat); pLeftArm.position.set(-0.35, 0.7, 0);
   pRightArm = new THREE.Mesh(armGeo, skinMat); pRightArm.position.set(0.35, 0.7, 0);
   playerModelGroup.add(pLeftArm, pRightArm);
 
   scene.add(playerModelGroup);
-  playerModelGroup.visible = false; // 기본 1인칭일 때는 숨김
+  playerModelGroup.visible = false; 
 }
 
 // 🖐️ 1인칭 전용 3D 손 및 아이템 구조화
@@ -379,13 +348,11 @@ function rebuild3DHandItem() {
   current3DItem = itemGroup; 
 }
 
-// 🎮 통합 애니메이션 매니저 (1인칭 손 스윙 & 3인칭 걷기 엇박자 모션)
 function updateAnimations(dt, isMoving) {
-  // 1. 1인칭 카메라 종속 레이어 업데이트
   if (handGroup) {
     handGroup.position.copy(camera.position);
     handGroup.quaternion.copy(camera.quaternion);
-    handGroup.visible = !isThirdPerson; // 3인칭일 때는 1인칭 무기 숨김
+    handGroup.visible = !isThirdPerson; 
   }
 
   if (isSwinging && current3DItem) {
@@ -394,60 +361,72 @@ function updateAnimations(dt, isMoving) {
     else { current3DItem.rotation.x = Math.sin(swingTime) * 1.2; }
   }
 
-  // 2. 3인칭 캐릭터 모델 트랙킹 및 관절 애니메이션
   if (playerModelGroup) {
     playerModelGroup.position.set(PL.x, PL.y, PL.z);
-    playerModelGroup.rotation.y = yaw + Math.PI; // 플레이어 정면이 카메라 정면과 연동
+    playerModelGroup.rotation.y = yaw + Math.PI; 
 
     if (isThirdPerson && isMoving) {
-      animTime += dt * SPEED * 2.2; // 이동 속도 비례 가속
-      const angle = Math.sin(animTime) * 0.6; // 최대 회전각 한계치
-      
-      // 팔다리 크로스 스윙 모션 교차 적용
+      animTime += dt * SPEED * 2.2; 
+      const angle = Math.sin(animTime) * 0.6; 
       pLeftLeg.rotation.x = angle;
       pRightLeg.rotation.x = -angle;
       pLeftArm.rotation.x = -angle * 0.8;
       pRightArm.rotation.x = angle * 0.8;
     } else {
-      // 정지 상태 시 모든 관절 원위치
       pLeftLeg.rotation.x = 0; pRightLeg.rotation.x = 0;
       pLeftArm.rotation.x = 0; pRightArm.rotation.x = 0;
     }
   }
 }
 
-// 🕹️ 조작 제어부 (Pointer Lock 적용)
-let yaw=0, pitch=0, selID=0, started=false, isPointerLocked=false;
+// 🕹️ 드래그 회전 전전용 조작계 (포인터 락 완전 소거)
+let yaw=0, pitch=0, selID=0, started=false;
+let dragging=false, lastMX=0, lastMY=0, totalDragDist=0;
 const keys={};
 
-function requestPointerLock() {
+function focusGame() { canvas.focus(); }
+window.addEventListener('click', focusGame);
+
+canvas.addEventListener('mousedown', e=>{
   if(!started) return;
-  canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
-  if(canvas.requestPointerLock) canvas.requestPointerLock();
-}
+  e.preventDefault();
+  focusGame();
+  dragging = true;
+  totalDragDist = 0; 
+  lastMX = e.clientX;
+  lastMY = e.clientY;
+});
 
-function lockChange() {
-  if (document.pointerLockElement === canvas || document.mozPointerLockElement === canvas) {
-    isPointerLocked = true;
-    document.getElementById('lock-warn').style.display = 'none';
-    canvas.focus();
-  } else {
-    isPointerLocked = false;
-    if(started) document.getElementById('lock-warn').style.display = 'block';
-  }
-}
+window.addEventListener('mousemove', e=>{
+  if(!started || !dragging) return;
+  const dx = e.clientX - lastMX;
+  const dy = e.clientY - lastMY;
+  
+  totalDragDist += Math.abs(dx) + Math.abs(dy);
 
-document.addEventListener('pointerlockchange', lockChange);
-document.addEventListener('mozpointerlockchange', lockChange);
-canvas.addEventListener('click', requestPointerLock);
-
-window.addEventListener('mousemove', e => {
-  if (!started || !isPointerLocked) return;
-  const dx = e.movementX || e.mozMovementX || 0;
-  const dy = e.movementY || e.mozMovementY || 0;
-  yaw   -= dx * 0.0025;
-  pitch -= dy * 0.0025;
+  yaw   -= dx * 0.004;
+  pitch -= dy * 0.004;
   pitch = Math.max(-1.55, Math.min(1.55, pitch));
+  
+  lastMX = e.clientX;
+  lastMY = e.clientY;
+});
+
+window.addEventListener('mouseup', e=>{
+  if(!started || !dragging) return;
+  dragging = false;
+
+  // 마우스를 클릭 수준(흔들림 8px 미만)으로 뗐을 때 상호작용 수행
+  if (totalDragDist < 8) {
+    if(e.button === 0) { 
+      isSwinging = true; swingTime = 0; 
+      doBreak();
+    }
+    else if(e.button === 2) { 
+      isSwinging = true; swingTime = 0;
+      doPlace();
+    }
+  }
 });
 
 window.addEventListener('keydown', e=>{
@@ -455,7 +434,6 @@ window.addEventListener('keydown', e=>{
   const n = parseInt(e.key);
   if(n>=1&&n<=7){ selID=n-1; updateHB(); rebuild3DHandItem(); }
   
-  // G 키 전용 바인딩: 1인칭 / 3인칭 토글 스위치
   if(e.code === 'KeyG') {
     isThirdPerson = !isThirdPerson;
     playerModelGroup.visible = isThirdPerson;
@@ -464,13 +442,6 @@ window.addEventListener('keydown', e=>{
   if(e.code==='Space') e.preventDefault();
 });
 window.addEventListener('keyup', e=>{ keys[e.code]=false; });
-
-window.addEventListener('mousedown', e => {
-  if (!started) return;
-  if (!isPointerLocked) { requestPointerLock(); return; }
-  if (e.button === 0) { isSwinging = true; swingTime = 0; doBreak(); }
-  else if (e.button === 2) { isSwinging = true; swingTime = 0; doPlace(); }
-});
 
 canvas.addEventListener('contextmenu', e=>e.preventDefault());
 window.addEventListener('wheel', e=>{
@@ -490,7 +461,7 @@ function doBreak(){
   const h=raycast(); if(!h) return;
   const{x,y,z}=h.object.userData;
   setV(x,y,z,null); delMesh(x,y,z);
-  checkSandPhysics(); // 주변 블록이 깨졌으므로 모래 중력 엔진 연쇄 가동
+  checkSandPhysics(); 
 }
 
 function doPlace(){
@@ -503,7 +474,7 @@ function doPlace(){
   if(getV(nx,ny,nz)===undefined){ 
     setV(nx,ny,nz,selID); 
     addMesh(nx,ny,nz,selID); 
-    checkSandPhysics(); // 새 모래 블록이 설치되었을 수 있으므로 즉시 검사
+    checkSandPhysics(); 
   }
 }
 
@@ -517,7 +488,7 @@ function buildHB(){
     if(b.isTool) c.style.background = "linear-gradient(135deg, #b0bec5 40%, #8b5a2b 0)";
     const l=document.createElement('div'); l.className='slot-label'; l.textContent=b.name;
     d.append(n,c,l);
-    d.onclick=()=>{ selID=i; updateHB(); rebuild3DHandItem(); };
+    d.onclick=()=>{ selID=i; updateHB(); rebuild3DHandItem(); focusGame(); };
     hb.appendChild(d);
   });
 }
@@ -533,7 +504,7 @@ function loop(ts){
   if(!started){ renderer.render(scene,camera); return; }
 
   updateAnimals(dt);
-  updateSandPhysics(dt); // 매 프레임 모래 추적 하강
+  updateSandPhysics(dt); 
 
   const sy=Math.sin(yaw), cy=Math.cos(yaw);
   let mx=0, mz=0;
@@ -550,12 +521,9 @@ function loop(ts){
 
   if(PL.y < -10){ PL.y=hAt(Math.floor(PL.x),Math.floor(PL.z))+3; PL.vy=0; }
 
-  // 🎥 시점 카메라 포지셔닝 설계
   if (!isThirdPerson) {
-    // 1인칭: 원래 눈높이 위치에 결착
     camera.position.set(PL.x, PL.y+EYE, PL.z);
   } else {
-    // 3인칭 후방 추적 카메라 공식 설계 (캐릭터 등 뒤로 2.8칸 떨어짐)
     const targetCamX = PL.x + Math.sin(yaw) * 2.8 * Math.cos(pitch);
     const targetCamZ = PL.z + Math.cos(yaw) * 2.8 * Math.cos(pitch);
     const targetCamY = PL.y + EYE + Math.sin(pitch) * 2.8 + 0.3;
@@ -563,7 +531,6 @@ function loop(ts){
   }
   camera.quaternion.setFromEuler(new THREE.Euler(pitch,yaw,0,'YXZ'));
 
-  // 애니메이션 가동
   updateAnimations(dt, isMoving);
 
   document.getElementById('ipos').textContent=`위치: ${Math.floor(PL.x)}, ${Math.floor(PL.y)}, ${Math.floor(PL.z)}`;
@@ -584,10 +551,10 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   PL.x=WS/2+0.5; PL.z=WS/2+0.5; PL.y=hAt(Math.floor(PL.x), Math.floor(PL.z))+2;
   
   buildHB();
-  initPlayerModel(); // 3인칭 메쉬 세팅
-  init3DHand();      // 1인칭 무기 세팅
+  initPlayerModel(); 
+  init3DHand();      
   
-  setTimeout(requestPointerLock, 100);
+  focusGame();
   requestAnimationFrame(loop);
 });
 </script>
@@ -595,7 +562,7 @@ document.getElementById('startBtn').addEventListener('click',()=>{
 </html>
 """
 
-st.title("⛏ Minecraft 3D (모래 중력 물리 & 3인칭 애니메이션)")
-st.caption("G 버튼으로 시점을 변경하고 걸어보세요! 공중에 설치한 모래 블록은 중력에 반응해 아래로 떨어집니다.")
+st.title("⛏ Minecraft 3D (드래그 회전 & 모래 물리 & 3인칭)")
+st.caption("안정적인 드래그 방식으로 조작합니다. 모래 중력 기능과 G 키 시점 전환은 그대로 유지됩니다.")
 
-components.html(minecraft_advanced_html, height=750, scrolling=False)
+components.html(minecraft_drag_html, height=750, scrolling=False)
