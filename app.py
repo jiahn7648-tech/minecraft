@@ -117,13 +117,10 @@ function loadTxt(url) {
   return t;
 }
 
-// 🧱 흙, 잔디 윗면 텍스처 설정
+// 🧱 요청해주신 ImgBB 다이렉트 파일 주소로 매핑 완료!
 const tDirt = loadTxt('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5CxO938QDIi1bYk3GVOq3S0gNOnZSRvIcFdMg-f-oiA&s=10'); 
-const tGrassTop = loadTxt('https://i.ibb.co/68XyK7B/image.png'); 
-
-// 🛠️ [에러 완벽 수정] 올려주신 파일의 순수 이미지 픽셀 데이터를 그대로 디코딩한 복사본입니다. 
-// 브라우저 차단 에러 없이 주신 이미지 "그대로" 마인크래프트에 100% 반영됩니다.
-const tGrassSide = loadTxt('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAACXBIWXMAAAsTAAALEwEAmpwYAAADeElEQVR4nO3bS47cMAwF0DoK979lbyfToI0NAnwNisw6W8mZ8scgCHX79ffz+eM/m8wbeD75UvK95Dvnq8gXku89A/O95996X0C+9AzkW8/AfO/ZmW8mX3r2PzM7883ky8g/9v8XkW8mX0YezPcjv9v/Z/L9yIMD883km8n3Iw8OzPeTb87w887f5P8H/v595vVbHn1oP2eMPrS/Mvzw/Yj8eBHe5e9/Z3jU/vHnh+Xv/73Z6U9Z96mPZfVv89fP306u/8T9S9b/pXWffgD/9V329F3M9B3MdGeWPT0Z+/rXv/S8L3v+Zszrn9mZ77pW5rvO/p0/G+fIe62OPEfW/RzzM9vPkWXPHPM9GevI+v7HPM9v9t6R9f2fM99M3ntHnrfD97KneTv83pfeUfG6Z8zrcsc8sz8XrnvePWeue8feM6N+MvKeN+Y5v7b8wHve/3NfD7/nvfcOvufrf//8zHe97u/9fXj9K6NfPzPfO/I8He756Hvv97wz3/v78PrXeX/v7Zmv//3j30e+///M61f2zHftwD0fPf/v3+u639v/+8x3Xf1zH3mf//f2r66f/fNfPzPfdR/v9fXznD3fX/Xv2z/vmNefI++Xee1I/+Rlz9s/e/vPyJbX8ffP0/rXv7L18U/mXf99+vOOn/f2zMjqf0feL6NenpH3bIffq9Zvv1v/9vXy9//e7PSnrPvUx7L6t/nr528n13/i/iXr/9K6Tz+A//oue/ouZvoOZvoOZrozy56ejH3961963pc9fzPm9c/szHddd/38re5f77g7W19/fG6pG5P78/58pvtY7s/787Pdx3pXv/052+p3jMnt2bZ6N7KtvhfZ9qyOfNfoWv9X/8w/g+6v+7Fm++s5e76/Xv6I7v98Xb38f877OftXz3z97++fc/b9Kq//Iff3vPr6Wc7+/O8f//7f+/v/vP/3/jnn/f937u/9V9f/z/5v38U5+69pXpdrjuzv+Vn9P3I+p/Pvf0ZevxqReX9EXpd7Dq//Iff3+pWxr/79uX/+N6PvvfX9t/vX27/ee9W/V/WvOvvbXzW/vveOunfvfX/vHXu/bX+9bO9f7//qW73uGXn9D3lv77/tZ0bWe9XzOftX9szp//3vF7O9Z8bUf7b6yX0f+X7XmNef063P7P+7/w6p/xHzZ+R99Xtk1HvO+NxfW+scWffMuL7W18/M6+WOkXXv6F7XzvbcM7re/Z57xs6vPTPbe86p9zzT/bUf2/4+mB/69/P5/AVvM80m8wZej8fD7+vxePh9vR4Pvwf8A3m9gC0G94ZgAAAAAElFTkSuQmCC');
+const tGrassTop = loadTxt('https://i.ibb.co/Gr2gGp5/image.png'); // 잔디 블록 윗면 이미지
+const tGrassSide = loadTxt('https://i.ibb.co/spp3L50/image.png'); // 잔디 블록 옆면 이미지
 
 const voxels = {};
 const WS = 36;
