@@ -117,10 +117,10 @@ function loadTxt(url) {
   return t;
 }
 
-// 🧱 텍스처 이미지 세팅 (요청 반영 완료)
+// 🧱 [요청 반영] 잔디 블록의 윗면과 옆면 주소를 요청해주신 새로운 이미지 주소로 변경했습니다!
 const tDirt = loadTxt('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5CxO938QDIi1bYk3GVOq3S0gNOnZSRvIcFdMg-f-oiA&s=10'); 
-const tGrassTop = loadTxt('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/minecraft/grass.png'); // 잔디 윗면
-const tGrassSide = loadTxt('https://i.ibb.co/68XyK7B/image.png'); // 잔디 옆면 (주신 링크를 직접 링크로 파싱)
+const tGrassTop = loadTxt('https://chatgpt.com/backend-api/estuary/content?id=file_0000000027287206a8221019566f4772&ts=494937&p=fs&cid=1&sig=5ecdd74dc8a4ab431e3b40ca87b5f33b265295fb0bb290d154e060efe713cf50&v=0'); // 새로 요청하신 잔디 윗면
+const tGrassSide = loadTxt('https://chatgpt.com/backend-api/estuary/content?id=file_0000000055887206a80ada887897bd86&ts=494937&p=fs&cid=1&sig=c59de0df39709555f6a63486e1a82bd1711c3fcfe2c216741802e93493b01fe5&v=0'); // 새로 요청하신 잔디 옆면
 
 const voxels = {};
 const WS = 36;
@@ -163,7 +163,7 @@ scene.add(new THREE.AmbientLight(0xffffff,0.65));
 const sun=new THREE.DirectionalLight(0xffffff,0.7);
 sun.position.set(20,40,15); scene.add(sun);
 
-// 🎨 블록 재질 관리 함수 (잔디 6면 개별 분리 적용 구역)
+// 🎨 블록 재질 관리 함수
 const mats={};
 function getBlockMaterial(id){ 
   if(!mats[id]) {
@@ -171,7 +171,7 @@ function getBlockMaterial(id){
       // 🌿 1번 잔디 블록: [오른쪽, 왼쪽, 윗면, 아랫면, 앞면, 뒷면] 순서로 재질 배열 설정
       const mSide = new THREE.MeshLambertMaterial({ map: tGrassSide });
       const mTop  = new THREE.MeshLambertMaterial({ map: tGrassTop });
-      const mBot  = new THREE.MeshLambertMaterial({ map: tDirt }); // 아랫면은 흙과 똑같이
+      const mBot  = new THREE.MeshLambertMaterial({ map: tDirt }); // 아랫면은 지정한 흙 텍스처 사용
       
       mats[id] = [mSide, mSide, mTop, mBot, mSide, mSide];
     } else if(id === 2) {
@@ -375,7 +375,6 @@ function rebuild3DHandItem() {
     head.position.set(0, 0.42, 0); itemGroup.add(head);
     itemGroup.rotation.set(0.3, 0, -0.4);
   } else {
-    // 인벤토리 손에 쥐는 블록도 다중 텍스처 배열 대응 가능하도록 설정
     const mats = getBlockMaterial(selID);
     const blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), mats);
     blockMesh.position.set(0, 0.15, 0); itemGroup.add(blockMesh);
