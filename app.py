@@ -8,9 +8,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ⚠️ 스트림릿 클라우드가 static 폴더 속 이미지를 읽을 수 있게 허락하는 핵심 설정
-st.static_group = "static"
-
 minecraft_drag_html = """
 <!DOCTYPE html>
 <html lang="ko">
@@ -120,8 +117,8 @@ function loadTxt(url) {
   return t;
 }
 
-// static 폴더에 올라간 dirt.png 로드
-const tDirt = loadTxt('/static/dirt.png'); 
+// ✨ [치트키 변형] 로컬 static 폴더 대신, 전 세계 어디서나 접속 가능한 오픈소스 마크 흙 이미지 주소로 직접 대체합니다.
+const tDirt = loadTxt('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/minecraft/dirt.png'); 
 
 const voxels = {};
 const WS = 36;
@@ -164,19 +161,17 @@ scene.add(new THREE.AmbientLight(0xffffff,0.65));
 const sun=new THREE.DirectionalLight(0xffffff,0.7);
 sun.position.set(20,40,15); scene.add(sun);
 
-// 🎨 블록 재질 관리 함수 (수정됨)
+// 🎨 블록 재질 관리 함수
 const mats={};
 function getBlockMaterial(id){ 
   if(!mats[id]) {
-    // 🌟 오직 2번(흙) 블록에만 이미지 텍스처를 입힙니다.
+    // 오직 2번(흙) 블록에만 이미지 텍스처를 입힙니다.
     if(id === 2) {
       const mDirt = new THREE.MeshLambertMaterial({
-        map: tDirt,
-        color: 0xffffff // 이미지가 안 불러와졌을 때 완전히 검은색이 되지 않도록 기본 베이스를 틉니다.
+        map: tDirt
       });
       mats[id] = [mDirt, mDirt, mDirt, mDirt, mDirt, mDirt]; 
     } else {
-      // 1번(잔디), 3번(돌) 등 나머지는 기존 고유의 색상 재질을 유지합니다.
       mats[id] = new THREE.MeshLambertMaterial({color: BTYPES[id].color});
     }
   } 
@@ -412,7 +407,7 @@ function updateAnimations(dt, isMoving) {
   }
 }
 
-// 🕹️ 드래그 회전 전전용 조작계 (포인터 락 완전 소거)
+// 🕹️ 조작계
 let yaw=0, pitch=0, selID=0, started=false;
 let dragging=false, lastMX=0, lastMY=0, totalDragDist=0;
 const keys={};
