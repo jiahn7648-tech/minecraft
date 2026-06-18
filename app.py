@@ -117,8 +117,10 @@ function loadTxt(url) {
   return t;
 }
 
-// 🧱 [요청 반영] 보낸주신 새로운 흙 이미지 주소로 교체 완료했습니다!
+// 🧱 텍스처 이미지 세팅 (요청 반영 완료)
 const tDirt = loadTxt('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5CxO938QDIi1bYk3GVOq3S0gNOnZSRvIcFdMg-f-oiA&s=10'); 
+const tGrassTop = loadTxt('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/minecraft/grass.png'); // 잔디 윗면
+const tGrassSide = loadTxt('https://i.ibb.co/68XyK7B/image.png'); // 잔디 옆면 (주신 링크를 직접 링크로 파싱)
 
 const voxels = {};
 const WS = 36;
@@ -161,16 +163,23 @@ scene.add(new THREE.AmbientLight(0xffffff,0.65));
 const sun=new THREE.DirectionalLight(0xffffff,0.7);
 sun.position.set(20,40,15); scene.add(sun);
 
-// 🎨 블록 재질 관리 함수
+// 🎨 블록 재질 관리 함수 (잔디 6면 개별 분리 적용 구역)
 const mats={};
 function getBlockMaterial(id){ 
   if(!mats[id]) {
-    if(id === 2) {
-      const mDirt = new THREE.MeshLambertMaterial({
-        map: tDirt
-      });
+    if(id === 1) {
+      // 🌿 1번 잔디 블록: [오른쪽, 왼쪽, 윗면, 아랫면, 앞면, 뒷면] 순서로 재질 배열 설정
+      const mSide = new THREE.MeshLambertMaterial({ map: tGrassSide });
+      const mTop  = new THREE.MeshLambertMaterial({ map: tGrassTop });
+      const mBot  = new THREE.MeshLambertMaterial({ map: tDirt }); // 아랫면은 흙과 똑같이
+      
+      mats[id] = [mSide, mSide, mTop, mBot, mSide, mSide];
+    } else if(id === 2) {
+      // 🧱 2번 흙 블록
+      const mDirt = new THREE.MeshLambertMaterial({ map: tDirt });
       mats[id] = [mDirt, mDirt, mDirt, mDirt, mDirt, mDirt]; 
     } else {
+      // 나머지 블록 (기존 고유 색상 유지)
       mats[id] = new THREE.MeshLambertMaterial({color: BTYPES[id].color});
     }
   } 
@@ -366,7 +375,9 @@ function rebuild3DHandItem() {
     head.position.set(0, 0.42, 0); itemGroup.add(head);
     itemGroup.rotation.set(0.3, 0, -0.4);
   } else {
-    const blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), getBlockMaterial(selID));
+    // 인벤토리 손에 쥐는 블록도 다중 텍스처 배열 대응 가능하도록 설정
+    const mats = getBlockMaterial(selID);
+    const blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), mats);
     blockMesh.position.set(0, 0.15, 0); itemGroup.add(blockMesh);
   }
 
