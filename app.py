@@ -111,7 +111,7 @@ const BTYPES = [
   {name:'모래',     color:0xd4b483, isTool:false},
 ];
 
-// 🪵 텍스처 로더 및 선명도(픽셀화) 보정 설정 추가
+// 🪵 텍스처 로더 및 선명도(픽셀화) 보정 설정
 const loader = new THREE.TextureLoader();
 function loadTxt(url) {
   const t = loader.load(url);
@@ -164,16 +164,20 @@ scene.add(new THREE.AmbientLight(0xffffff,0.65));
 const sun=new THREE.DirectionalLight(0xffffff,0.7);
 sun.position.set(20,40,15); scene.add(sun);
 
-// 🎨 블록 텍스처 및 색상 다중 면 재질(Material) 관리 함수
+// 🎨 블록 재질 관리 함수 (수정됨)
 const mats={};
 function getBlockMaterial(id){ 
   if(!mats[id]) {
-    // 흙 블록(2번) 및 비교를 위해 잔디(1번), 돌(3번)까지 흙 텍스처를 우선 입혀봅니다.
-    if(id === 1 || id === 2 || id === 3) {
-      const mDirt = new THREE.MeshLambertMaterial({map: tDirt});
-      mats[id] = [mDirt, mDirt, mDirt, mDirt, mDirt, mDirt]; // 큐브의 6면 전부 흙 텍스처로 지정
+    // 🌟 오직 2번(흙) 블록에만 이미지 텍스처를 입힙니다.
+    if(id === 2) {
+      const mDirt = new THREE.MeshLambertMaterial({
+        map: tDirt,
+        color: 0xffffff // 이미지가 안 불러와졌을 때 완전히 검은색이 되지 않도록 기본 베이스를 틉니다.
+      });
+      mats[id] = [mDirt, mDirt, mDirt, mDirt, mDirt, mDirt]; 
     } else {
-      mats[id] = new THREE.MeshLambertMaterial({color:BTYPES[id].color});
+      // 1번(잔디), 3번(돌) 등 나머지는 기존 고유의 색상 재질을 유지합니다.
+      mats[id] = new THREE.MeshLambertMaterial({color: BTYPES[id].color});
     }
   } 
   return mats[id]; 
@@ -186,7 +190,6 @@ function addMesh(x,y,z,id){
   const k=vk(x,y,z);
   if(meshMap[k]) scene.remove(meshMap[k]);
   
-  // 🔄 색상 함수 'mat(id)' 대신 이미지 텍스처를 지원하는 'getBlockMaterial(id)'로 교체
   const m=new THREE.Mesh(baseGeo, getBlockMaterial(id));
   m.position.set(x+0.5,y+0.5,z+0.5);
   m.userData={x,y,z};
@@ -369,7 +372,6 @@ function rebuild3DHandItem() {
     head.position.set(0, 0.42, 0); itemGroup.add(head);
     itemGroup.rotation.set(0.3, 0, -0.4);
   } else {
-    // 🔄 손에 쥔 블록 아이템도 getBlockMaterial(selID)을 사용하여 텍스처 연동
     const blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), getBlockMaterial(selID));
     blockMesh.position.set(0, 0.15, 0); itemGroup.add(blockMesh);
   }
@@ -447,7 +449,6 @@ window.addEventListener('mouseup', e=>{
   if(!started || !dragging) return;
   dragging = false;
 
-  // 마우스를 클릭 수준(흔들림 8px 미만)으로 뗐을 때 상호작용 수행
   if (totalDragDist < 8) {
     if(e.button === 0) { 
       isSwinging = true; swingTime = 0; 
