@@ -117,8 +117,8 @@ function loadTxt(url) {
   return t;
 }
 
-// ✨ [치트키 변형] 로컬 static 폴더 대신, 전 세계 어디서나 접속 가능한 오픈소스 마크 흙 이미지 주소로 직접 대체합니다.
-const tDirt = loadTxt('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/minecraft/dirt.png'); 
+// 🧱 [요청 반영] 보낸주신 새로운 흙 이미지 주소로 교체 완료했습니다!
+const tDirt = loadTxt('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5CxO938QDIi1bYk3GVOq3S0gNOnZSRvIcFdMg-f-oiA&s=10'); 
 
 const voxels = {};
 const WS = 36;
@@ -165,7 +165,6 @@ sun.position.set(20,40,15); scene.add(sun);
 const mats={};
 function getBlockMaterial(id){ 
   if(!mats[id]) {
-    // 오직 2번(흙) 블록에만 이미지 텍스처를 입힙니다.
     if(id === 2) {
       const mDirt = new THREE.MeshLambertMaterial({
         map: tDirt
